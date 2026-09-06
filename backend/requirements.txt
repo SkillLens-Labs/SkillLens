@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+pytest
+pytest-asyncio
+httpx
+PyMuPDF>=1.24,<2.0
+python-docx>=1.1,<2.0

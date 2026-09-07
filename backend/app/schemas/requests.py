@@ -19,6 +19,13 @@ class ClientMetadata(BaseModel):
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
+class ResumeDocumentInput(BaseModel):
+    """Raw resume document supplied to the analysis orchestrator."""
+    filename: str
+    content: bytes
+    content_type: str | None = None
+
+
 class ResumeAnalysisRequest(BaseModel):
     """Contract for a resume-only analysis request."""
 

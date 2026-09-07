@@ -1,650 +1,632 @@
 SkillLens --- Changelog
 =====================
 
-All notable changes to the SkillLens project are documented in this file.
+All notable changes to SkillLens are documented here.
 
-The changelog follows a chronological development history and focuses on meaningful architectural, functional, testing, and documentation changes.
+The changelog records meaningful architectural, functional, testing, and documentation milestones.
 
 * * * * *
 
 [Unreleased]
 ============
 
-Phase 1 --- Foundation and Architecture
--------------------------------------
+Future work belongs here until the corresponding phase is completed and committed.
 
-### Added
+* * * * *
 
--   Established the SkillLens project repository structure.
+Phase 3 --- Resume Intelligence Pipeline
+======================================
 
--   Created the backend application structure using a modular monolith architecture.
+**Status: COMPLETE**
 
--   Created the frontend application using React, TypeScript, and Vite.
+**Commit:**
 
--   Established the `API → Orchestration → Domain → Infrastructure` dependency direction.
+```
+0b73efe Complete Phase 3 resume intelligence pipeline
 
--   Established the single Analysis Orchestrator as the central workflow coordinator.
+```
 
--   Defined canonical domain models for:
+Added
+-----
 
-    -   Analysis
+### Resume Structure Interpretation
 
-    -   Resume
+Added:
 
-    -   Job
+```
+backend/app/analysis/resume_structure.py
 
-    -   Skill
-
-    -   Evidence
-
-    -   Confidence
-
-    -   Matching
-
-    -   Skill gaps
-
-    -   Scoring
-
-    -   XAI
-
-    -   Career intelligence
-
-    -   Recommendations
-
--   Defined stable API request and response contracts.
-
--   Defined the stable API error contract.
-
--   Defined frontend TypeScript representations of backend analysis contracts.
-
--   Added the initial analysis state model to the frontend.
-
--   Added backend health endpoint.
-
--   Added analysis API endpoint definitions.
-
--   Added application configuration using Pydantic Settings.
-
--   Added centralized logging configuration.
-
--   Added centralized application exception handling.
-
--   Added Python test structure.
-
--   Added frontend testing structure.
-
--   Added project documentation structure.
-
-### Backend
-
-Created the initial backend modules:
-
--   `backend/app/main.py`
-
--   `backend/app/api/`
-
--   `backend/app/core/`
-
--   `backend/app/domain/`
-
--   `backend/app/schemas/`
-
--   `backend/app/orchestration/`
-
--   `backend/app/analysis/`
-
--   `backend/app/infrastructure/`
-
--   `backend/app/utils/`
+```
 
 Implemented:
 
--   FastAPI application initialization.
+-   `ResumeSectionType`
 
--   API router registration.
+-   `ResumeSection`
 
--   `/api/v1/health`.
+-   `StructuredResume`
 
--   Analysis route contracts.
+-   `ResumeStructureInterpreter`
 
--   `ApplicationError`.
+-   section heading aliases
 
--   Stable `ErrorResponse`.
+-   supported resume section classification
 
--   Analysis request schemas.
+-   unknown-section handling
 
--   Analysis response schemas.
+-   document-order preservation
 
--   `AnalysisOrchestrator` abstract contract.
+Supported sections include:
 
-### Frontend
+-   Summary
 
-Created the initial frontend foundation:
+-   Experience
 
--   React application entry point.
+-   Education
 
--   Application root component.
+-   Projects
 
--   Vite configuration.
+-   Certifications
 
--   TypeScript configuration.
-
--   Canonical analysis types.
-
--   API types.
-
--   Analysis state model.
-
-The frontend currently provides a minimal application shell and does not yet contain the production analysis interface.
-
-### API
-
-Established the API version prefix:
-
-`/api/v1`
-
-Established the following endpoints:
-
--   `GET /api/v1/health`
-
--   `POST /api/v1/analyses/resume`
-
--   `POST /api/v1/analyses/resume-jd`
-
--   `GET /api/v1/analyses/{analysis_id}`
-
--   `DELETE /api/v1/analyses/{analysis_id}`
-
-Analysis endpoints currently return a controlled not-implemented response because analytical processing is outside the Phase 1 implementation boundary.
-
-### Testing
-
-Added backend tests for:
-
--   API endpoint contracts.
-
--   Domain contracts.
-
--   Error behavior.
-
--   Basic application behavior.
-
-Current backend verification:
-
--   `9 passed`
-
-Added frontend validation through:
-
--   ESLint
-
--   TypeScript compilation
-
--   Vite production build
-
-Current frontend verification:
-
--   lint: PASS
-
--   build: PASS
-
-### Architecture
-
-Established the following canonical analytical responsibilities:
-
--   `DocumentProcessor`
-
--   `SkillExtractor`
-
--   `SkillNormalizer`
-
--   `SemanticMatcher`
-
--   `GapAnalyzer`
-
--   `ScoreEngine`
-
--   `XAIEngine`
-
--   `CareerIntelligenceEngine`
-
--   `RecommendationEngine`
-
-These engines are currently architectural responsibilities and interfaces rather than completed analytical implementations.
-
-### Documentation
-
-Created and established:
-
--   `PROJECT_MASTER.md`
-
--   `PROJECT_STATUS.md`
-
--   `ARCHITECTURE.md`
-
--   `API_CONTRACT.md`
-
--   `DATA_SCHEMA.md`
-
--   `CODEBASE_MAP.md`
-
--   `CHANGELOG.md`
-
--   `SESSION_HANDOFF.md`
-
-The documentation set is intended to provide persistent project context across development sessions and AI-assisted development phases.
+-   Skills
 
 * * * * *
 
-Phase 1 Verification
-====================
+### Skill Extraction
 
-The following checks were completed successfully:
+Added:
 
-### Backend compilation
+```
+backend/app/analysis/skill_extractor.py
 
-`python -m compileall -q backend`
+```
 
-Result:
+Implemented:
 
-PASS
+-   deterministic skill vocabulary
 
-### Backend tests
+-   explicit skill extraction
 
-`python -m pytest backend/tests -q`
+-   contextual skill extraction
 
-Result:
+-   `SkillEvidenceType`
 
-PASS
+-   `SkillMention`
 
-`9 passed`
+-   `SkillExtractionResult`
 
-### Frontend lint
+-   source block provenance
 
-`npm run lint`
+-   source offsets
 
-Result:
+-   extraction confidence
 
-PASS
+Explicit extraction is supported for:
 
-### Frontend build
+-   Skills
 
-`npm run build`
+-   Certifications
 
-Result:
+Contextual extraction is supported for:
 
-PASS
+-   Summary
 
-### API verification
+-   Experience
 
-OpenAPI verification confirmed:
+-   Projects
 
--   `/api/v1/health`
-
--   `/api/v1/analyses/resume`
-
--   `/api/v1/analyses/resume-jd`
-
--   `/api/v1/analyses/{analysis_id}` GET
-
--   `/api/v1/analyses/{analysis_id}` DELETE
-
-Result:
-
-PASS
-
-### Dependency-direction verification
-
-Result:
-
-`NONE`
-
-No dependency-direction violations were detected.
-
-### Duplicate module-name verification
-
-Result:
-
-`NONE`
-
-No duplicate Python module names remain in the backend structure.
+-   Education
 
 * * * * *
 
-Architectural Decisions Recorded in Phase 1
-===========================================
+### Skill Normalization
 
-Single Orchestrator
--------------------
+Added:
 
-The Analysis Orchestrator is the central coordinator of the analytical workflow.
+```
+backend/app/analysis/skill_normalizer.py
 
-Analytical engines must not directly call one another.
+```
 
-* * * * *
+Implemented:
 
-Single Source of Truth
-----------------------
+-   Unicode NFKC normalization
 
-`AnalysisResult` is the canonical representation of an analysis.
+-   case normalization
 
-The frontend should consume the stable API representation rather than reconstructing analytical results independently.
+-   whitespace normalization
 
-* * * * *
+-   alias resolution
 
-Scoring Ownership
------------------
+-   canonical skill names
 
-`ScoreEngine` is the sole owner of official compatibility scoring.
+-   preservation of raw extracted text
 
-Other components may provide inputs to scoring but must not independently calculate competing official scores.
+-   preservation of extraction confidence
 
-* * * * *
+Representative aliases include:
 
-Explainability Ownership
-------------------------
+```
+Py → python
+Python3 → python
+JS → javascript
+ReactJS → react
+React.js → react
+Postgres → postgresql
+Mongo → mongodb
+sklearn → scikit-learn
+ML → machine learning
+PowerBI → power bi
 
-`XAIEngine` explains existing analytical results.
-
-It must not independently recalculate or redefine the official score.
-
-* * * * *
-
-Recommendation Ownership
-------------------------
-
-`RecommendationEngine` is the sole owner of recommendation generation.
-
-Other components may provide evidence, gaps, priorities, or signals used by the recommendation engine.
+```
 
 * * * * *
 
-Resume-Only Analysis
---------------------
+### ESCO Mapping
 
-Resume-only analysis must not fabricate:
+Added:
 
--   job-specific match scores
+```
+backend/app/analysis/esco_mapper.py
 
--   missing job skills
+```
 
--   job-specific compatibility conclusions
+Implemented:
 
-Job-specific results require a job description.
+-   `ESCOMapStatus`
 
-* * * * *
+-   `ESCOCandidate`
 
-Confidence Representation
--------------------------
+-   `ESCOMapResult`
 
-Confidence is represented canonically using a `0--1` score with:
+-   deterministic ESCO adapter
 
--   confidence level
+-   mapping confidence
 
--   components
+-   mapping method
 
--   rationale
+-   mapping version metadata
 
-* * * * *
+-   ordered batch mapping
 
-Public Score Representation
----------------------------
+Current ESCO version:
 
-Official user-facing scores use a:
+```
+1.2.1
 
-`0--100`
+```
 
-range.
+The mapper currently contains a representative adapter vocabulary rather than the complete ESCO dataset.
 
-Internal calculations may use:
-
-`0--1`
-
-when mathematically appropriate.
+No fabricated ESCO identifiers are used.
 
 * * * * *
 
-Infrastructure Strategy
------------------------
+### ResumeProfile Builder
 
-The project intentionally avoids unnecessary infrastructure during the early phases.
+Added:
 
-The following are not part of the current architecture:
+```
+backend/app/analysis/resume_profile_builder.py
 
--   Redis
+```
 
--   Celery
+Implemented:
 
--   Kafka
+-   canonical `ResumeProfile` construction
 
--   Kubernetes
+-   deterministic profile IDs
 
--   microservices
+-   deterministic skill IDs
 
--   service mesh
+-   deterministic evidence IDs
 
-Additional infrastructure will only be introduced when there is a demonstrated architectural requirement.
+-   duplicate skill merging
 
-* * * * *
+-   evidence merging
 
-Dependency and Ownership Rules
-==============================
+-   confidence aggregation
 
-The following rules were established during Phase 1:
+-   skill categorization
 
-1.  API routes do not contain analytical algorithms.
+-   summary extraction
 
-2.  Engines do not directly call other engines.
+-   ESCO metadata
 
-3.  The orchestrator controls workflow execution.
+-   builder metadata
 
-4.  Domain models do not depend on the frontend.
-
-5.  Domain models do not depend on HTTP transport.
-
-6.  Frontend components do not implement backend analytical logic.
-
-7.  There must be one canonical owner for each major responsibility.
-
-8.  Evidence should be retained for important analytical conclusions.
-
-9.  New dependencies require architectural justification.
-
-10. New modules must not duplicate existing responsibilities.
+The builder does not invent resume facts that cannot be reliably derived from source evidence.
 
 * * * * *
 
-Deferred to Future Phases
-=========================
+Testing
+-------
 
-The following functionality has intentionally not been implemented during Phase 1:
+Added unit tests:
+
+```
+backend/tests/unit/test_resume_structure.py
+backend/tests/unit/test_skill_extractor.py
+backend/tests/unit/test_skill_normalizer.py
+backend/tests/unit/test_esco_mapper.py
+backend/tests/unit/test_resume_profile_builder.py
+
+```
+
+Added integration test:
+
+```
+backend/tests/integration/test_phase3_resume_analysis.py
+
+```
+
+Added real document fixtures:
+
+```
+backend/tests/fixtures/phase3_sample_resume.pdf
+backend/tests/fixtures/phase3_sample_resume.docx
+
+```
+
+* * * * *
+
+Verification
+------------
+
+Phase 3 full regression:
+
+```
+115 passed
+7 warnings
+0 failures
+
+```
+
+Command:
+
+```
+PYTHONPATH=. pytest backend/tests -q
+
+```
+
+The warnings are dependency/deprecation warnings and did not cause test failures.
+
+* * * * *
+
+Real Document Verification
+--------------------------
+
+### DOCX
+
+The real DOCX fixture successfully demonstrated:
+
+```
+ParsedDocument
+→ Resume Structure
+→ Skill Extraction
+→ Skill Normalization
+→ ESCO Mapping
+→ ResumeProfile
+
+```
+
+### PDF
+
+The real PDF fixture successfully demonstrated:
 
 -   PDF parsing
 
--   DOCX parsing
+-   text extraction
 
--   advanced NLP processing
+-   block provenance
 
--   transformer-based skill extraction
+The frozen PDF parser does not currently infer synthetic semantic headings reliably, so the complete section-aware Phase 3 pipeline was demonstrated using DOCX.
 
--   ESCO taxonomy integration
-
--   skill normalization implementation
-
--   transformer embeddings
-
--   semantic similarity
-
--   hybrid skill matching
-
--   skill-gap analysis
-
--   official scoring implementation
-
--   SHAP/LIME explainability
-
--   career intelligence
-
--   recommendation generation
-
--   persistence implementation
-
--   advanced frontend pages
-
--   production visualization components
-
--   LLM integration
-
--   model benchmarking
-
--   analytical evaluation datasets
-
-These features will be implemented incrementally in later phases.
-
-* * * * *
-
-Change Management Rules
-=======================
-
-Future changelog entries should:
-
--   describe what changed
-
--   identify the affected subsystem
-
--   distinguish architectural changes from implementation changes
-
--   record important dependency changes
-
--   record schema or API contract changes
-
--   record significant bug fixes
-
--   avoid documenting insignificant generated-file changes
-
-Every major phase should add a corresponding changelog section.
-
-* * * * *
-
-Versioning
-==========
-
-Current application version:
-
-`0.1.0`
-
-Current development status:
-
-`Phase 1 --- Foundation and Architecture`
-
-Next versioning changes will be made when a meaningful implementation milestone is completed.
-
-* * * * *
-
-Future Entry Format
-===================
-
-Future entries should generally follow this structure:
-
-[Version or Phase]
-------------------
-
-### Added
-
-New functionality.
-
-### Changed
-
-Changes to existing functionality or architecture.
-
-### Fixed
-
-Bug fixes.
-
-### Removed
-
-Removed functionality.
-
-### Testing
-
-Important validation results.
-
-### Documentation
-
-Important documentation changes.
-
-### Architecture
-
-Important architectural decisions or changes.
+Phase 2 was not modified to bypass this limitation.
 
 * * * * *
 
 Phase 2 --- Document Processing
 =============================
 
-### Added
+**Status: COMPLETE / FROZEN**
 
--   Implemented document-processing infrastructure.
+Added
+-----
 
--   Added PDF parser using PyMuPDF.
+Created the document-processing infrastructure under:
 
--   Added DOCX parser using python-docx.
+```
+backend/app/infrastructure/parsers/
 
--   Added common `DocumentParser` abstraction.
+```
 
--   Added `DocumentProcessor` orchestration for document validation and parser selection.
+Implemented:
 
--   Added normalized `ParsedDocument` representation.
+-   `DocumentParser`
 
--   Added `DocumentBlock` and `SourceLocation` provenance models.
+-   `PDFParser`
 
--   Added PDF page/block provenance.
+-   `DOCXParser`
 
--   Added DOCX paragraph/table provenance.
+-   `DocumentProcessor`
 
--   Added PDF and DOCX structural validation.
+-   document validation
 
--   Added file-size and empty-document validation.
+-   normalized document models
 
--   Added MIME/content-type validation.
+-   source provenance
 
--   Added PDF and DOCX signature validation.
+The canonical output is:
 
--   Added parser contract tests.
+```
+ParsedDocument
 
--   Added document reconstruction and provenance tests.
+```
 
-### Dependencies
+* * * * *
 
--   Added `PyMuPDF>=1.24,<2.0`
+Testing
+-------
 
--   Added `python-docx>=1.1,<2.0`
+Phase 2 regression:
 
-### Verification
+```
+70 passed
+7 warnings
 
--   Backend tests: 70 passed
+```
 
--   Parsed document contract tests: 8 passed
+Phase 2 is frozen and serves as the document-processing boundary for later phases.
 
--   Python compilation: passed
+* * * * *
 
--   API route inspection: passed
+Phase 1 --- Foundation and Architecture
+=====================================
 
--   OpenAPI verification: passed
+**Status: COMPLETE**
 
--   Frontend TypeScript verification: passed
+Added
+-----
 
--   Frontend production build: passed
+Established:
 
-### Architectural Boundary
+-   SkillLens repository structure
 
-Phase 2 implements document processing only.
+-   modular monolith architecture
 
-No semantic skill extraction, embeddings, matching, scoring, XAI, career intelligence, recommendations, or LLM analytical pipeline has been implemented.
+-   backend foundation
 
-### Repository Hygiene
+-   frontend foundation
 
--   Removed temporary `tmp/` directory.
+-   API versioning
 
--   Confirmed generated/cache directories are ignored by Git.
+-   canonical domain contracts
 
--   Prepared repository for initial project baseline commit.
+-   API schemas
+
+-   frontend contracts
+
+-   Analysis Orchestrator interface
+
+-   error handling
+
+-   logging foundation
+
+-   configuration
+
+-   automated testing structure
+
+-   development documentation
+
+* * * * *
+
+Backend
+-------
+
+Established:
+
+```
+backend/app/main.py
+backend/app/api/
+backend/app/core/
+backend/app/domain/
+backend/app/schemas/
+backend/app/orchestration/
+backend/app/analysis/
+backend/app/infrastructure/
+backend/app/utils/
+
+```
+
+Implemented:
+
+-   FastAPI application
+
+-   API router registration
+
+-   `/api/v1/health`
+
+-   analysis route contracts
+
+-   `ApplicationError`
+
+-   stable error response
+
+-   analysis request schemas
+
+-   analysis response schemas
+
+-   Analysis Orchestrator contract
+
+* * * * *
+
+Frontend
+--------
+
+Established:
+
+-   React application
+
+-   TypeScript configuration
+
+-   Vite configuration
+
+-   frontend API contracts
+
+-   canonical analysis types
+
+-   analysis state model
+
+-   ESLint configuration
+
+* * * * *
+
+Architecture
+------------
+
+Established the canonical dependency direction:
+
+```
+API
+ ↓
+Analysis Orchestrator
+ ↓
+Domain Engines
+ ↓
+Infrastructure
+
+```
+
+Established canonical responsibilities for:
+
+-   DocumentProcessor
+
+-   SkillExtractor
+
+-   SkillNormalizer
+
+-   SemanticMatcher
+
+-   GapAnalyzer
+
+-   ScoreEngine
+
+-   XAIEngine
+
+-   CareerIntelligenceEngine
+
+-   RecommendationEngine
+
+* * * * *
+
+API
+---
+
+Established:
+
+```
+/api/v1
+
+```
+
+with contracts for:
+
+```
+GET    /api/v1/health
+POST   /api/v1/analyses/resume
+POST   /api/v1/analyses/resume-jd
+GET    /api/v1/analyses/{analysis_id}
+DELETE /api/v1/analyses/{analysis_id}
+
+```
+
+Advanced analytical processing was intentionally deferred to later phases.
+
+* * * * *
+
+Testing
+-------
+
+Established:
+
+-   backend unit test structure
+
+-   API contract tests
+
+-   domain contract tests
+
+-   application behavior tests
+
+-   frontend validation structure
+
+* * * * *
+
+Documentation
+-------------
+
+Established:
+
+```
+PROJECT_MASTER.md
+PROJECT_STATUS.md
+ARCHITECTURE.md
+API_CONTRACT.md
+DATA_SCHEMA.md
+CODEBASE_MAP.md
+FEATURES.md
+SESSION_HANDOFF.md
+CHANGELOG.md
+
+```
+
+* * * * *
+
+Historical Verification Summary
+===============================
+
+| Phase | Result |
+| --- | --- |
+| Phase 1 | Complete |
+| Phase 2 | Complete / Frozen |
+| Phase 3 | Complete / Verified |
+| Current regression | 115 passed |
+| Current failures | 0 |
+| Current working tree | Clean |
+---
+
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
+
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
+
+The complete Phase 4 workflow is:
+
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
+
+Completed Phase 4 stages:
+
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
+
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
+
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
+
+Final verification:
+
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
+
+The complete Phase 4 implementation history is documented in:
+
+`docs/PHASE_4.md`
+
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

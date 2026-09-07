@@ -1,6 +1,8 @@
-# SkillLens — Project Master
+SkillLens --- Project Master
+==========================
 
-## 1. Project Identity
+1\. Project Identity
+--------------------
 
 **Project Name:** SkillLens
 
@@ -9,507 +11,883 @@
 **Project Type:** Academic software engineering and research project
 
 **Primary Objective:**
-Build an explainable semantic skill-gap analysis platform that compares candidate resumes with job requirements, identifies skill matches and gaps, explains analytical results, and produces actionable career recommendations.
 
----
+Build an explainable semantic skill-gap analysis platform that analyzes candidate resumes, optionally compares them with job requirements, identifies semantic skill matches and gaps, explains analytical results, and produces actionable career recommendations.
 
-## 2. Core Problem
+* * * * *
 
-Traditional resume screening and skill matching systems often depend heavily on exact keyword matching. This can fail when a candidate and job description express similar capabilities using different terminology.
+2\. Core Problem
+================
 
-SkillLens is designed to address this limitation through:
+Traditional resume screening and skill matching systems often rely heavily on exact keyword matching.
 
-- Structured resume and job-profile extraction
-- Skill normalization
-- Semantic similarity using transformer-based representations
-- Hybrid skill matching
-- Explicit skill-gap identification
-- Explainable analytical results
-- Career intelligence
-- Actionable recommendations
+This can fail when candidates and job descriptions describe similar capabilities using different terminology.
 
----
+SkillLens is designed to address this through:
 
-## 3. Supported Analysis Modes
+-   structured resume and job-profile extraction
 
-### RESUME_ONLY
+-   skill normalization
 
-Analyzes a resume independently.
+-   ESCO taxonomy integration
 
-The system may provide:
+-   transformer-based semantic representations
 
-- Resume profile
-- Extracted skills
-- Candidate profile
-- Career signals
-- Potential roles
-- Skill priorities
-- Recommendations
-- Explainability where applicable
+-   hybrid semantic and lexical matching
 
-The system must **not fabricate job-specific information** such as:
+-   explicit skill-gap identification
 
-- Job-match score
-- Missing skills relative to a job
-- Job-specific skill gaps
-- Job-specific match explanations
+-   explainable analytical results
 
-### RESUME_JD
+-   career intelligence
 
-Analyzes a resume against a supplied job description.
+-   actionable recommendations
 
-The system may provide:
+* * * * *
 
-- Resume profile
-- Job profile
-- Extracted skills
-- Matched skills
-- Partial matches
-- Missing skills
-- Transferable skills
-- Skill-gap analysis
-- Scoring
-- Explainability
-- Career intelligence
-- Recommendations
+3\. Development Phases
+======================
 
----
+SkillLens is developed incrementally.
 
-## 4. Approved Architecture
+Phase 1 --- Foundation and Architecture
+-------------------------------------
 
-SkillLens uses a **modular monolith**.
+**Status: COMPLETE**
 
-The primary dependency direction is:
+Established:
 
+-   project structure
 
+-   modular-monolith architecture
 
+-   canonical domain contracts
 
-API
-↓
-Analysis Orchestrator
-↓
-Domain Engines
-↓
-Infrastructure
-text
-Copy
+-   API contracts
 
-The Analysis Orchestrator is the single coordinator of the analysis workflow.
+-   frontend contracts
 
-### Canonical Engines
+-   Analysis Orchestrator interface
 
-Each responsibility has one canonical owner:
+-   testing foundation
 
-- DocumentProcessor
-- SkillExtractor
-- SkillNormalizer
-- SemanticMatcher
-- GapAnalyzer
-- ScoreEngine
-- XAIEngine
-- CareerIntelligenceEngine
-- RecommendationEngine
+-   documentation foundation
 
-Engines must not directly orchestrate or call one another. Workflow coordination belongs to the Analysis Orchestrator.
-
-## 5. Canonical Ownership Rules
-
-**Analysis Orchestrator**
-Owns workflow coordination.
-
-**SkillExtractor**
-Owns skill extraction from source documents.
-
-**SkillNormalizer**
-Owns canonicalization, aliases, taxonomy mapping, and normalization.
-
-**SemanticMatcher**
-Owns semantic comparison between skills or requirements.
-
-**GapAnalyzer**
-Owns identification and classification of skill gaps.
-
-**ScoreEngine**
-Is the single owner of analytical scoring.
-
-**XAIEngine**
-Explains existing analytical results.
-It must not independently recalculate scores.
-
-**CareerIntelligenceEngine**
-Owns candidate-level career inference and role intelligence.
-
-**RecommendationEngine**
-Is the single owner of recommendations.
-
-## 6. Canonical Result Contract
-
-`AnalysisResult` is the single source of truth for frontend analytical data.
-
-It contains:
-- analysis metadata
-- input references
-- resume profile
-- optional job profile
-- skill analysis
-- scoring
-- XAI results
-- career intelligence
-- recommendations
-- processing metadata
-
-The frontend must consume stable API/domain contracts rather than backend implementation details.
-
-## 7. Canonical Scoring Rules
-
-Public scores use a 0–100 scale.
-
-Internal calculations may use normalized values such as 0–1.
-
-Scoring dimensions include:
-- Overall score
-- Skill score
-- Required-skill score
-- Preferred-skill score
-- Experience score
-- Education score
-- Domain score
-
-Confidence is represented canonically on a 0–1 scale with:
-- score
-- level
-- components
-- rationale
-
-## 8. Explainability Principles
-
-Explainability is a first-class system capability.
-
-XAI should connect analytical outputs to supporting evidence.
-
-Planned explainability technologies include:
-- SHAP
-- LIME as an alternative where appropriate
-
-XAI explains results produced by analytical engines. It does not become a second scoring system.
-
-## 9. Planned Technology Stack
-
-### Backend
-- Python
-- FastAPI
-- Pydantic
-- Pydantic Settings
-
-### Frontend
-- React
-- TypeScript
-- Vite
-
-### NLP / ML
-Planned for later phases:
-- Sentence Transformers
-- all-MiniLM-L6-v2 as the initial embedding model
-- Transformer-based NLP
-- Hybrid semantic and lexical matching
-- ESCO skill taxonomy
-- SHAP
-- LIME
-- LLM
-
-A locally hosted open-source LLM using Ollama is planned.
-
-The LLM is not the semantic similarity engine.
-
-The final model will be selected after benchmarking.
-
-## 10. Document Support
-
-Planned document processing includes:
-- PDF
-- DOCX
-
-Document parsing belongs behind the DocumentProcessor abstraction.
-
-## 11. API Versioning
-
-The API base path is:
-`/api/v1`
-
-Current planned endpoints:
-- `GET /api/v1/health`
-- `POST /api/v1/analyses/resume`
-- `POST /api/v1/analyses/resume-jd`
-- `GET /api/v1/analyses/{analysis_id}`
-- `DELETE /api/v1/analyses/{analysis_id}`
-
-## 12. Testing Strategy
-
-SkillLens uses multiple testing layers:
-- Unit tests
-- Integration tests
-- API tests
-- Evaluation tests
-- Regression tests
-
-Phase 1 establishes the initial unit and API testing infrastructure.
-
-## 13. Development Principles
-
-The project follows these principles:
-- Prefer modularity over premature distributed architecture.
-- Maintain one canonical owner for each responsibility.
-- Keep domain contracts stable.
-- Keep API contracts explicit.
-- Avoid circular dependencies.
-- Avoid duplicate analytical implementations.
-- Do not introduce unnecessary infrastructure.
-- Do not implement advanced features before their designated phase.
-- Validate each phase before progressing.
-- Keep frontend independent of backend implementation details.
-- Use Git/GitHub for version control.
-
-## 14. Infrastructure Constraints
-
-The initial architecture deliberately avoids unnecessary infrastructure such as:
-- Redis
-- Celery
-- Kafka
-- Kubernetes
-- Service mesh
-- Microservices
-- Distributed workflow systems
-
-These may only be introduced later if an explicit requirement justifies them.
-
-## 15. Project Phases
-
-### Phase 1 — Foundation
-**Scope:**
-- Project structure
-- Backend foundation
-- Frontend foundation
-- Canonical domain schemas
-- API contracts
-- Orchestrator interface
-- Frontend state/data contracts
-- Testing infrastructure
-- Architecture validation
-- Project documentation
-
-### Phase 2 — Document Processing and Skill Extraction
-**Planned scope:**
-- Resume parsing
-- Job-description parsing
-- Section extraction
-- Skill extraction
-- Evidence generation
-
-### Phase 3 — Skill Normalization and Taxonomy
-**Planned scope:**
-- Skill canonicalization
-- Alias handling
-- Taxonomy mapping
-- ESCO integration
-
-### Phase 4 — Semantic Matching and Gap Analysis
-**Planned scope:**
-- Embeddings
-- Similarity computation
-- Hybrid matching
-- Partial matches
-- Transferable skills
-- Skill-gap analysis
-
-### Phase 5 — Scoring and Explainability
-**Planned scope:**
-- ScoreEngine implementation
-- Confidence computation
-- XAI
-- Evidence mapping
-
-### Phase 6 — Career Intelligence and Recommendations
-**Planned scope:**
-- Career intelligence
-- Role-fit analysis
-- Skill priorities
-- Recommendation engine
-
-### Phase 7 — Frontend Product Integration
-**Planned scope:**
-- Complete analysis workflow
-- Visualization
-- Explainability UI
-- Career insights
-- Recommendations
-
-### Phase 8 — Evaluation and Finalization
-**Planned scope:**
-- Evaluation datasets
-- Regression testing
-- Benchmarking
-- Performance validation
-- Documentation
-- Final academic evaluation
-
-## 16. Current Phase
-**Current Phase:** Phase 1 — Foundation
-
-Phase 1 must be completed and verified before Phase 2 begins.
-Phase 2 is intentionally not started.
-
-## 17. Phase 1 Completion Standard
-
-Phase 1 is complete only when:
-- Required project structure exists.
-- Canonical schemas are implemented.
-- API contracts are defined.
-- Orchestrator interface exists.
-- Frontend contracts exist.
-- State contract exists.
-- Backend tests pass.
-- Frontend lint passes.
-- Frontend build passes.
-- Backend compiles.
-- API routes are exposed correctly.
-- Backend/frontend contracts agree.
-- Circular dependency checks pass.
-- Duplicate responsibility checks pass.
-- Required documentation is updated.
+* * * * *
 
 Phase 2 --- Document Processing
 -----------------------------
 
-Phase 2 implements the document-processing foundation required by the downstream SkillLens analytical pipeline.
+**Status: COMPLETE / FROZEN**
 
-### Phase 2 Scope
+Established:
 
-Phase 2 is strictly limited to document processing.
+-   `DocumentParser`
 
-Implemented capabilities:
+-   `PDFParser`
 
--   PDF document validation
+-   `DOCXParser`
 
--   DOCX document validation
+-   `DocumentProcessor`
 
--   File extension validation
+-   validation
 
--   MIME/content-type validation
+-   `ParsedDocument`
 
--   File signature validation
+-   normalized document blocks
 
--   Empty-document detection
+-   source provenance
 
--   Maximum document-size enforcement
+Phase 2 is the permanent document-processing boundary.
 
--   PDF text extraction
+Later phases consume `ParsedDocument` and must not reparse PDF/DOCX files.
 
--   DOCX paragraph extraction
+* * * * *
 
--   DOCX heading detection
+Phase 3 --- Resume Intelligence
+-----------------------------
 
--   DOCX bullet/list detection
+**Status: COMPLETE / VERIFIED**
 
--   DOCX table extraction
-
--   Normalized document blocks
-
--   Source provenance preservation
-
--   Page-level provenance for PDF content
-
--   Paragraph/table/row/column provenance for DOCX content
-
--   Stable document identifiers
-
--   Unified `DocumentProcessor` abstraction
-
--   Parser abstraction allowing future document types
-
-### Phase 2 Boundary
-
-Phase 2 does not perform:
-
--   Resume profile extraction
-
--   Job-description profile extraction
-
--   Skill extraction
-
--   Transformer-based embeddings
-
--   Semantic similarity
-
--   Lexical/keyword matching
-
--   Hybrid matching
-
--   Skill-gap calculation
-
--   Candidate-job scoring
-
--   XAI analysis
-
--   Career intelligence
-
--   Recommendations
-
--   LLM-based analysis
-
-The output of Phase 2 is a normalized `ParsedDocument` containing document blocks and source provenance. This representation is intended to become the input to downstream extraction and analytical stages in later phases.
-
-### Architectural Flow
+Implemented:
 
 ```
-Document bytes
-      ↓
+ParsedDocument
+    ↓
+Resume Structure Interpretation
+    ↓
+Skill Extraction
+    ↓
+Skill Normalization
+    ↓
+ESCO Mapping
+    ↓
+Evidence Linking
+    ↓
+Confidence Estimation
+    ↓
+ResumeProfile
+
+```
+
+Implemented modules:
+
+```
+backend/app/analysis/resume_structure.py
+backend/app/analysis/skill_extractor.py
+backend/app/analysis/skill_normalizer.py
+backend/app/analysis/esco_mapper.py
+backend/app/analysis/resume_profile_builder.py
+
+```
+
+Phase 3 is committed as:
+
+```
+0b73efe Complete Phase 3 resume intelligence pipeline
+
+```
+
+* * * * *
+
+4\. Supported Analysis Modes
+============================
+
+RESUME_ONLY
+-----------
+
+Analyzes a resume independently.
+
+The system may eventually provide:
+
+-   resume profile
+
+-   extracted skills
+
+-   candidate profile
+
+-   career signals
+
+-   potential roles
+
+-   skill priorities
+
+-   recommendations
+
+-   explainability where applicable
+
+The system must not fabricate job-specific information such as:
+
+-   job-match score
+
+-   missing skills relative to a job
+
+-   job-specific skill gaps
+
+-   job-specific match explanations
+
+* * * * *
+
+RESUME_JD
+---------
+
+Analyzes a resume against a supplied job description.
+
+The system may eventually provide:
+
+-   resume profile
+
+-   job profile
+
+-   extracted skills
+
+-   matched skills
+
+-   partial matches
+
+-   missing skills
+
+-   transferable skills
+
+-   skill-gap analysis
+
+-   scoring
+
+-   explainability
+
+-   career intelligence
+
+-   recommendations
+
+Resume-JD intelligence belongs to later phases.
+
+* * * * *
+
+5\. Approved Architecture
+=========================
+
+SkillLens uses a **modular monolith**.
+
+Primary dependency direction:
+
+```
+API
+ ↓
+Analysis Orchestrator
+ ↓
+Domain Engines
+ ↓
+Infrastructure
+
+```
+
+The Analysis Orchestrator is the single coordinator of analytical workflows.
+
+Domain engines must remain focused on their individual responsibilities.
+
+* * * * *
+
+6\. Canonical Analytical Responsibilities
+=========================================
+
+The project has one canonical owner for each major responsibility.
+
+### Document Processing
+
+`DocumentProcessor`
+
+Owns PDF/DOCX processing and produces `ParsedDocument`.
+
+### Resume Structure
+
+`ResumeStructureInterpreter`
+
+Interprets the structure of an already parsed resume.
+
+### Skill Extraction
+
+`SkillExtractor`
+
+Extracts skill mentions and evidence from parsed resume content.
+
+### Skill Normalization
+
+`SkillNormalizer`
+
+Converts extracted mentions into canonical skill representations.
+
+### ESCO Mapping
+
+`ESCOMapper`
+
+Maps canonical skills to ESCO terminology where supported.
+
+### Resume Profile Construction
+
+`ResumeProfileBuilder`
+
+Builds the canonical `ResumeProfile`.
+
+### Semantic Matching
+
+`SemanticMatcher`
+
+Owns future semantic comparison between skills or requirements.
+
+### Gap Analysis
+
+`GapAnalyzer`
+
+Owns future skill-gap identification and classification.
+
+### Scoring
+
+`ScoreEngine`
+
+Is the single owner of analytical scoring.
+
+### Explainability
+
+`XAIEngine`
+
+Explains existing analytical results.
+
+It must not independently recalculate scores.
+
+### Career Intelligence
+
+`CareerIntelligenceEngine`
+
+Owns candidate-level career inference and role intelligence.
+
+### Recommendations
+
+`RecommendationEngine`
+
+Is the single owner of recommendations.
+
+* * * * *
+
+7\. Canonical Ownership Rules
+=============================
+
+Each analytical responsibility must have one canonical implementation.
+
+No duplicate:
+
+-   skill extractors
+
+-   skill normalizers
+
+-   resume models
+
+-   matching engines
+
+-   scoring engines
+
+-   recommendation engines
+
+-   document parsers
+
+-   analysis orchestrators
+
+The Analysis Orchestrator coordinates workflow.
+
+Individual domain engines must not become independent workflow orchestrators.
+
+* * * * *
+
+8\. Phase 3 Resume Intelligence Contract
+========================================
+
+The canonical Phase 3 contract is:
+
+```
+ParsedDocument
+        ↓
+StructuredResume
+        ↓
+SkillMention
+        ↓
+NormalizedSkill
+        ↓
+ESCOMapResult
+        ↓
+Evidence + Confidence
+        ↓
+ResumeProfile
+
+```
+
+The final output is the domain-level:
+
+```
+ResumeProfile
+
+```
+
+This profile becomes the canonical resume representation for later phases.
+
+* * * * *
+
+9\. ResumeProfile
+=================
+
+The canonical `ResumeProfile` contains:
+
+-   `profile_id`
+
+-   `document_id`
+
+-   `candidate_summary`
+
+-   `contact`
+
+-   `education`
+
+-   `experience`
+
+-   `projects`
+
+-   `certifications`
+
+-   `skills`
+
+-   `skill_categories`
+
+-   `total_experience`
+
+-   `seniority`
+
+-   `domains`
+
+-   `metadata`
+
+Later phases may enrich the profile, but they must preserve its canonical ownership.
+
+* * * * *
+
+10\. Skill Representation
+=========================
+
+The canonical `Skill` model supports:
+
+-   skill identity
+
+-   canonical name
+
+-   display name
+
+-   category
+
+-   subcategory
+
+-   aliases
+
+-   proficiency
+
+-   importance
+
+-   evidence
+
+-   confidence
+
+-   metadata
+
+Phase 3 adds deterministic extraction, normalization, evidence, confidence, and ESCO metadata without introducing a competing skill model.
+
+* * * * *
+
+11\. Evidence and Provenance
+============================
+
+Evidence is a first-class system capability.
+
+Evidence must retain its relationship to the source document.
+
+The canonical `Evidence` model supports:
+
+-   evidence ID
+
+-   source type
+
+-   source document ID
+
+-   section
+
+-   source text
+
+-   start offset
+
+-   end offset
+
+-   evidence type
+
+-   extractor
+
+-   relevance
+
+-   confidence
+
+Future XAI components should use this provenance rather than reconstructing evidence independently.
+
+* * * * *
+
+12\. Confidence
+===============
+
+Confidence uses the canonical representation:
+
+```
+0--1 score
+
+```
+
+with:
+
+-   confidence level
+
+-   component scores
+
+-   rationale
+
+Phase 3 estimates confidence for extracted and mapped skills.
+
+Confidence is not the same thing as analytical matching score.
+
+* * * * *
+
+13\. ESCO Integration
+=====================
+
+SkillLens uses ESCO as the planned external skill taxonomy.
+
+Current Phase 3 ESCO version:
+
+```
+1.2.1
+
+```
+
+Current implementation provides an adapter boundary with a deterministic representative vocabulary.
+
+The implementation does not contain the complete ESCO dataset.
+
+No fabricated ESCO identifiers are permitted.
+
+A future infrastructure implementation may connect the mapper to the official ESCO dataset/API while preserving the `ESCOMapper` ownership boundary.
+
+* * * * *
+
+14\. Document Processing Contract
+=================================
+
+Document processing belongs exclusively to the Phase 2 infrastructure layer.
+
+The flow is:
+
+```
+PDF / DOCX
+    ↓
 DocumentProcessor
-      ↓
-Document validation
-      ↓
-PDFParser / DOCXParser
-      ↓
-Normalized document blocks
-      ↓
-Source provenance
-      ↓
+    ↓
 ParsedDocument
 
 ```
 
-The `DocumentProcessor` remains an infrastructure component and does not perform analytical interpretation, skill matching, scoring, or recommendations.
+Phase 3 and later phases consume:
 
-### Phase 2 Completion Status
+```
+ParsedDocument
 
-Phase 2 --- Document Processing is implemented and verified.
+```
 
-Verification completed:
+They must not:
 
--   Backend test suite: 70 passed
+-   reopen PDF files
 
--   Parsed-document contract tests: 8 passed
+-   reopen DOCX files
 
--   Python compilation: passed
+-   duplicate parser logic
 
--   API route inspection: passed
+-   create competing document models
 
--   OpenAPI verification: passed
+The Phase 2 boundary is frozen.
 
--   Frontend TypeScript verification: passed
+* * * * *
 
--   Frontend production build: passed
+15\. API Versioning
+===================
 
--   Git repository hygiene review: completed
+API base path:
 
--   Temporary `tmp/` directory removed
+```
+/api/v1
 
--   PyMuPDF dependency declared
+```
 
--   python-docx dependency declared
+Current endpoint contracts include:
 
-Phase 2 is considered complete only after the final repository verification and freeze are performed.
+```
+GET    /api/v1/health
+POST   /api/v1/analyses/resume
+POST   /api/v1/analyses/resume-jd
+GET    /api/v1/analyses/{analysis_id}
+DELETE /api/v1/analyses/{analysis_id}
 
-**Current Phase:** Phase 2 --- Document Processing
+```
 
-**Next Phase:** Not started
+The complete production analysis workflow will be integrated progressively through later phases.
 
+* * * * *
+
+16\. Canonical Analysis Result
+==============================
+
+`AnalysisResult` is the single source of truth for frontend analytical data.
+
+It contains or will contain:
+
+-   analysis metadata
+
+-   input references
+
+-   resume profile
+
+-   optional job profile
+
+-   skill analysis
+
+-   scoring
+
+-   XAI results
+
+-   career intelligence
+
+-   recommendations
+
+-   processing metadata
+
+The frontend must consume stable API/domain contracts rather than backend implementation details.
+
+* * * * *
+
+17\. Scoring Rules
+==================
+
+Public scores use a:
+
+```
+0--100
+
+```
+
+scale.
+
+Internal calculations may use normalized values such as:
+
+```
+0--1
+
+```
+
+Planned scoring dimensions include:
+
+-   overall score
+
+-   skill score
+
+-   required-skill score
+
+-   preferred-skill score
+
+-   experience score
+
+-   education score
+
+-   domain score
+
+Scoring is outside the Phase 3 boundary.
+
+* * * * *
+
+18\. Explainability Principles
+==============================
+
+Explainability is a first-class capability.
+
+XAI should connect analytical outputs to supporting evidence.
+
+Planned technologies include:
+
+-   SHAP
+
+-   LIME where appropriate
+
+XAI explains results produced by analytical engines.
+
+It must not become a second scoring engine.
+
+* * * * *
+
+19\. Planned Technology Stack
+=============================
+
+Backend
+-------
+
+-   Python
+
+-   FastAPI
+
+-   Pydantic
+
+-   Pydantic Settings
+
+Frontend
+--------
+
+-   React
+
+-   TypeScript
+
+-   Vite
+
+NLP / ML
+--------
+
+Planned:
+
+-   Sentence Transformers
+
+-   transformer-based NLP
+
+-   `all-MiniLM-L6-v2` as an initial embedding candidate
+
+-   hybrid semantic and lexical matching
+
+-   ESCO
+
+-   SHAP
+
+-   LIME
+
+-   LLM
+
+A locally hosted open-source LLM using Ollama is planned for later recommendation/intelligence functionality.
+
+The LLM is not the semantic similarity engine.
+
+* * * * *
+
+20\. Testing Strategy
+=====================
+
+Every completed phase must be verified through appropriate tests.
+
+Required categories include:
+
+-   unit tests
+
+-   integration tests
+
+-   regression tests
+
+-   negative tests
+
+-   real document tests where applicable
+
+Tests must be executed before claiming completion.
+
+Phase 3 regression baseline:
+
+```
+115 passed
+7 warnings
+0 failures
+
+```
+
+* * * * *
+
+21\. Explicit Phase Boundaries
+==============================
+
+Phase 3 does not implement:
+
+-   job description analysis
+
+-   resume-JD matching
+
+-   hybrid matching
+
+-   semantic similarity
+
+-   skill-gap scoring
+
+-   final match score
+
+-   XAI scoring engine
+
+-   career intelligence
+
+-   role recommendations
+
+-   learning recommendations
+
+-   Ollama
+
+-   LLM recommendation generation
+
+-   frontend dashboard redesign
+
+These are reserved for later phases.
+
+* * * * *
+
+22\. Current Development State
+==============================
+
+```
+Phase 1 --- Foundation
+COMPLETE
+
+Phase 2 --- Document Processing
+COMPLETE / FROZEN
+
+Phase 3 --- Resume Intelligence
+COMPLETE / VERIFIED
+
+Phase 4 --- Resume Quality & ATS Intelligence
+PLANNED / NOT STARTED
+
+```
+
+Latest verified repository commit:
+
+```
+0b73efe Complete Phase 3 resume intelligence pipeline
+
+```
+
+* * * * *
+
+23\. Next Planned Phase
+=======================
+
+The next planned development phase is:
+
+**Phase 4 --- Resume Quality & ATS Intelligence**
+
+Phase 4 must begin with:
+
+```
+READ
+→ INSPECT
+→ PLAN
+→ IMPLEMENT
+→ TEST
+→ INTEGRATE
+→ VERIFY
+→ FREEZE
+
+```
+
+No Phase 4 implementation should begin until its exact scope and contracts are established.
+---
+
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
+
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
+
+The complete Phase 4 workflow is:
+
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
+
+Completed Phase 4 stages:
+
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
+
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
+
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
+
+Final verification:
+
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
+
+The complete Phase 4 implementation history is documented in:
+
+`docs/PHASE_4.md`
+
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

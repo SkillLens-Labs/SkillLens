@@ -8,7 +8,13 @@ This document defines the stable API contract for the SkillLens backend.
 
 The API provides a versioned interface between the React frontend and the FastAPI backend.
 
-The API contract is intentionally defined before advanced analytical implementation so that backend engines can evolve internally without requiring frontend redesign.
+The API contract is intentionally defined before and independently of advanced analytical implementation so that backend engines can evolve internally without requiring frontend redesign.
+
+Phase 1 established the public API contract.
+
+Phase 2 established the internal document-processing boundary.
+
+Phase 3 established the internal resume-intelligence pipeline without changing the public API contract.
 
 * * * * *
 
@@ -29,11 +35,14 @@ Frontend communication:
 
 -   JSON
 
--   multipart/form-data for document uploads
+-   `multipart/form-data` for document uploads
 
 API version:
 
-`/api/v1`
+```
+/api/v1
+
+```
 
 * * * * *
 
@@ -42,11 +51,17 @@ API version:
 
 All application endpoints are exposed under:
 
-`/api/v1`
+```
+/api/v1
+
+```
 
 Example:
 
-`/api/v1/health`
+```
+/api/v1/health
+
+```
 
 The version prefix allows future API versions to coexist without breaking existing clients.
 
@@ -63,6 +78,10 @@ The version prefix allows future API versions to coexist without breaking existi
 | GET | `/api/v1/analyses/{analysis_id}` | Retrieve analysis result |
 | DELETE | `/api/v1/analyses/{analysis_id}` | Delete an analysis |
 
+Phase 3 does not introduce a new public endpoint.
+
+The Phase 3 resume-intelligence pipeline is an internal analytical capability used by the analysis workflow.
+
 * * * * *
 
 5\. Health Endpoint
@@ -71,7 +90,10 @@ The version prefix allows future API versions to coexist without breaking existi
 Endpoint
 --------
 
-`GET /api/v1/health`
+```
+GET /api/v1/health
+
+```
 
 Purpose
 -------
@@ -83,7 +105,10 @@ Successful Response
 
 HTTP status:
 
-`200 OK`
+```
+200 OK
+
+```
 
 Response:
 
@@ -104,20 +129,35 @@ Response:
 Endpoint
 --------
 
-`POST /api/v1/analyses/resume`
+```
+POST /api/v1/analyses/resume
+
+```
 
 Purpose
 -------
 
 Accepts a resume and performs analysis without requiring a job description.
 
-This mode is designed for:
+The architectural analysis flow now includes the completed Phase 3 resume-intelligence capabilities:
 
--   resume profiling
+-   document processing
+
+-   resume structure interpretation
 
 -   skill extraction
 
 -   skill normalization
+
+-   ESCO mapping
+
+-   evidence linking
+
+-   confidence estimation
+
+-   canonical `ResumeProfile`
+
+Later phases may extend resume-only analysis with:
 
 -   career intelligence
 
@@ -129,7 +169,7 @@ This mode is designed for:
 
 -   skill improvement recommendations
 
--   XAI explanations where applicable
+-   XAI explanations
 
 Resume-only analysis must not fabricate job-specific results.
 
@@ -145,37 +185,50 @@ Therefore, the system must not generate:
 
 when no job description is supplied.
 
+* * * * *
+
 Request Content Type
 --------------------
 
-`multipart/form-data`
+```
+multipart/form-data
+
+```
 
 Request Fields
 --------------
 
-### resume
+### `resume`
 
 Type:
 
-`UploadFile`
+```
+UploadFile
+
+```
 
 Required:
 
+```
 Yes
+
+```
 
 Accepted document types are defined by the document-processing implementation.
 
-The initial planned formats are:
+The currently supported Phase 2 document-processing formats are:
 
 -   PDF
 
 -   DOCX
 
-### options
+The API must not claim support for document formats that the backend document-processing layer does not actually process.
+
+### `options`
 
 Optional analysis configuration.
 
-The canonical options are:
+Canonical options:
 
 -   `include_career_intelligence`
 
@@ -187,7 +240,7 @@ Default:
 
 All three are enabled.
 
-### client_metadata
+### `client_metadata`
 
 Optional client-supplied metadata.
 
@@ -207,14 +260,19 @@ Supported fields:
 Endpoint
 --------
 
-`POST /api/v1/analyses/resume-jd`
+```
+POST /api/v1/analyses/resume-jd
+
+```
 
 Purpose
 -------
 
 Accepts both a resume and a job description for semantic skill-gap analysis.
 
-This mode enables:
+The intended complete analysis pipeline includes:
+
+-   resume processing
 
 -   resume profiling
 
@@ -240,39 +298,60 @@ This mode enables:
 
 -   recommendations
 
+The resume side of this workflow now has the Phase 3 foundation.
+
+Job-description analysis and resume-JD comparison remain future-phase responsibilities.
+
+* * * * *
+
 Request Content Type
 --------------------
 
-`multipart/form-data`
+```
+multipart/form-data
+
+```
 
 Request Fields
 --------------
 
-### resume
+### `resume`
 
 Type:
 
-`UploadFile`
+```
+UploadFile
+
+```
 
 Required:
 
+```
 Yes
 
-### job_description
+```
+
+### `job_description`
 
 Type:
 
-`UploadFile`
+```
+UploadFile
+
+```
 
 Required:
 
+```
 Yes
 
-### options
+```
+
+### `options`
 
 Optional analysis configuration.
 
-### client_metadata
+### `client_metadata`
 
 Optional client-supplied metadata.
 
@@ -292,34 +371,47 @@ The canonical analysis options are:
 
 ```
 
-include_career_intelligence
----------------------------
+`include_career_intelligence`
+-----------------------------
 
-Controls whether CareerIntelligenceEngine output is included.
-
-Default:
-
-`true`
-
-include_recommendations
------------------------
-
-Controls whether RecommendationEngine output is included.
+Controls whether `CareerIntelligenceEngine` output is included.
 
 Default:
 
-`true`
+```
+true
 
-include_xai
------------
+```
 
-Controls whether XAIEngine output is included.
+`include_recommendations`
+-------------------------
+
+Controls whether `RecommendationEngine` output is included.
 
 Default:
 
-`true`
+```
+true
 
-These options control output generation. They must not change the fundamental meaning of the analysis.
+```
+
+`include_xai`
+-------------
+
+Controls whether `XAIEngine` output is included.
+
+Default:
+
+```
+true
+
+```
+
+These options control output generation.
+
+They must not change the fundamental meaning of the analysis.
+
+Phase 3 does not implement career intelligence, recommendations, or XAI.
 
 * * * * *
 
@@ -337,22 +429,25 @@ The optional client metadata structure is:
 
 ```
 
-source
-------
+`source`
+--------
 
 Identifies the client or source initiating the request.
 
 Example:
 
-`web`
+```
+web
 
-session_id
-----------
+```
+
+`session_id`
+------------
 
 Optional client session identifier.
 
-extra
------
+`extra`
+-------
 
 Flexible metadata object for additional non-critical client information.
 
@@ -378,15 +473,15 @@ Schema:
 
 Fields:
 
-### analysis_id
+### `analysis_id`
 
 Unique identifier for the analysis.
 
-### status
+### `status`
 
 Current analysis processing status.
 
-The canonical status vocabulary is:
+Canonical status vocabulary:
 
 -   `pending`
 
@@ -396,7 +491,7 @@ The canonical status vocabulary is:
 
 -   `failed`
 
-### message
+### `message`
 
 Human-readable description of the current state.
 
@@ -408,7 +503,10 @@ Human-readable description of the current state.
 Endpoint
 --------
 
-`GET /api/v1/analyses/{analysis_id}`
+```
+GET /api/v1/analyses/{analysis_id}
+
+```
 
 Purpose
 -------
@@ -446,6 +544,8 @@ The `data` object is the canonical `AnalysisResult`.
 
 The frontend must consume this canonical structure rather than reconstructing analytical results from multiple independent API responses.
 
+Phase 3 contributes the canonical `resume_profile` through the internal resume-intelligence pipeline.
+
 * * * * *
 
 12\. Analysis Deletion
@@ -454,7 +554,10 @@ The frontend must consume this canonical structure rather than reconstructing an
 Endpoint
 --------
 
-`DELETE /api/v1/analyses/{analysis_id}`
+```
+DELETE /api/v1/analyses/{analysis_id}
+
+```
 
 Purpose
 -------
@@ -486,6 +589,7 @@ Canonical structure:
 
 ```
 AnalysisResult
+
 ├── analysis_id
 ├── schema_version
 ├── analysis_mode
@@ -503,6 +607,8 @@ AnalysisResult
 
 ```
 
+Phase 3 populates the `resume_profile` domain component internally.
+
 * * * * *
 
 14\. Analysis Modes
@@ -515,14 +621,33 @@ RESUME_ONLY
 
 Resume is supplied without a job description.
 
-Expected analytical scope:
+The Phase 3 resume-intelligence flow is:
 
 ```
 Resume
   ↓
-Resume Profile
+DocumentProcessor
   ↓
-Skills
+ParsedDocument
+  ↓
+Resume Structure
+  ↓
+Skill Extraction
+  ↓
+Skill Normalization
+  ↓
+ESCO Mapping
+  ↓
+Evidence + Confidence
+  ↓
+ResumeProfile
+
+```
+
+Later phases may continue from `ResumeProfile` into:
+
+```
+ResumeProfile
   ↓
 Career Intelligence
   ↓
@@ -534,12 +659,14 @@ XAI
 
 Job-specific scoring is unavailable in this mode.
 
+* * * * *
+
 RESUME_JD
 ---------
 
 Resume and job description are supplied.
 
-Expected analytical scope:
+The intended architecture is:
 
 ```
 Resume ───────┐
@@ -548,7 +675,9 @@ Job ──────────┘
 
 ```
 
-This mode enables semantic comparison and skill-gap analysis.
+The resume branch now has the Phase 3 `ResumeProfile` foundation.
+
+Job profiling and resume-JD comparison belong to later phases.
 
 * * * * *
 
@@ -573,7 +702,7 @@ Canonical schema:
 Fields
 ------
 
-### code
+### `code`
 
 Machine-readable error identifier.
 
@@ -589,23 +718,26 @@ Examples:
 
 -   `DOCUMENT_PROCESSING_FAILED`
 
-### message
+### `message`
 
 Human-readable explanation.
 
-### details
+### `details`
 
 Optional structured information about the error.
 
-### field
+### `field`
 
 Optional request field associated with the error.
 
 Example:
 
-`resume`
+```
+resume
 
-### request_id
+```
+
+### `request_id`
 
 Unique identifier for tracing the request through backend logs.
 
@@ -630,6 +762,8 @@ The API must:
 
 Internal exceptions must be translated into API-level errors by the backend exception-handling layer.
 
+Phase 3 analytical failures must follow the same application-level error boundary rather than exposing internal engine exceptions directly through the API.
+
 * * * * *
 
 17\. HTTP Status Code Strategy
@@ -650,9 +784,11 @@ Planned status categories include:
 | 422 | Request validation failure |
 | 500 | Unexpected server error |
 
-During Phase 1, analysis endpoints intentionally return `501 Not Implemented` because the analytical engines have not yet been implemented.
+During Phase 1, analysis endpoints intentionally returned `501 Not Implemented` because the analytical engines had not yet been implemented.
 
-This is a temporary Phase 1 state and is not the final production behavior.
+That statement is historical.
+
+Phase 2 and Phase 3 have since implemented the document-processing and resume-intelligence layers, but the complete production API orchestration and downstream analytical workflow remain to be integrated in later phases.
 
 * * * * *
 
@@ -661,9 +797,12 @@ This is a temporary Phase 1 state and is not the final production behavior.
 
 The backend configuration currently defines:
 
-`max_upload_size_mb = 10`
+```
+max_upload_size_mb = 10
 
-The final document-processing layer must enforce upload limits consistently.
+```
+
+The document-processing layer must enforce upload limits consistently.
 
 File validation should consider:
 
@@ -678,6 +817,12 @@ File validation should consider:
 -   parser compatibility
 
 -   malformed documents
+
+The currently verified document-processing formats are:
+
+-   PDF
+
+-   DOCX
 
 The frontend must not claim support for formats that the backend does not actually process.
 
@@ -717,7 +862,15 @@ API routes are responsible for:
 
 API routes must not directly implement:
 
+-   document parsing
+
+-   resume structure interpretation
+
 -   skill extraction
+
+-   skill normalization
+
+-   ESCO mapping
 
 -   semantic similarity
 
@@ -728,6 +881,8 @@ API routes must not directly implement:
 -   XAI calculations
 
 -   recommendation generation
+
+Phase 3 follows this separation by keeping resume-intelligence components under the analysis layer rather than placing analytical logic inside API routes.
 
 * * * * *
 
@@ -740,8 +895,11 @@ The orchestrator provides the canonical application-level operations:
 
 ```
 analyze_resume()
+
 analyze_resume_jd()
+
 get_analysis()
+
 delete_analysis()
 
 ```
@@ -752,6 +910,7 @@ For example, the following architecture is prohibited:
 
 ```
 API
+
  ├── SkillExtractor
  ├── ScoreEngine
  ├── XAIEngine
@@ -770,6 +929,8 @@ Required Engines
 
 ```
 
+The Phase 3 implementation establishes reusable analysis components that the orchestrator can coordinate.
+
 * * * * *
 
 21\. Response Ownership
@@ -779,10 +940,13 @@ Each analytical responsibility has a canonical owner.
 
 | Result | Owner |
 | --- | --- |
-| Resume profile | Resume/domain model + processing pipeline |
-| Job profile | Job/domain model + processing pipeline |
+| Parsed document | DocumentProcessor |
+| Resume structure | ResumeStructureInterpreter |
 | Skill extraction | SkillExtractor |
 | Skill normalization | SkillNormalizer |
+| ESCO mapping | ESCOMapper |
+| Resume profile | ResumeProfileBuilder |
+| Job profile | Job/domain processing pipeline |
 | Semantic matching | SemanticMatcher |
 | Skill gaps | GapAnalyzer |
 | Scores | ScoreEngine |
@@ -799,11 +963,17 @@ No two independent engines should generate competing versions of the same canoni
 
 Where job-specific scoring is available, the public score range is:
 
-`0--100`
+```
+0--100
+
+```
 
 Internal calculations may use:
 
-`0--1`
+```
+0--1
+
+```
 
 The API should expose normalized public scores while preserving sufficient structured information for explainability.
 
@@ -824,6 +994,8 @@ Canonical scoring dimensions may include:
 -   domain score
 
 The exact weighting algorithm belongs to `ScoreEngine` and must not be implemented in API routes.
+
+Scoring is outside the Phase 3 implementation boundary.
 
 * * * * *
 
@@ -860,6 +1032,8 @@ Rules:
 
 Confidence must not be represented using incompatible scales across different API objects.
 
+Phase 3 uses this canonical confidence representation for skill-related evidence and mapping confidence.
+
 * * * * *
 
 24\. Evidence Contract
@@ -883,6 +1057,8 @@ relevance
 confidence
 
 ```
+
+Phase 3 establishes evidence linking for extracted skills.
 
 Evidence is particularly important for:
 
@@ -931,6 +1107,8 @@ Canonical XAI output includes:
 
 The official score remains owned by `ScoreEngine`.
 
+XAI is outside the Phase 3 implementation boundary.
+
 * * * * *
 
 26\. Recommendation Contract
@@ -959,6 +1137,8 @@ Recommendations should be connected to identified gaps or career signals wheneve
 
 The frontend must consume recommendation objects from the canonical analysis result rather than independently generating recommendations.
 
+Recommendations are outside the Phase 3 implementation boundary.
+
 * * * * *
 
 27\. Frontend Integration Contract
@@ -983,6 +1163,8 @@ FastAPI
 
 The frontend uses TypeScript interfaces corresponding to backend API contracts.
 
+Phase 3 does not require a public API contract change.
+
 * * * * *
 
 28\. API Versioning Rules
@@ -1002,36 +1184,16 @@ Non-breaking additions may be introduced within the existing version when they d
 
 The frontend should be developed against explicit versioned contracts rather than undocumented backend behavior.
 
+Phase 3 does not require `/api/v2`.
+
 * * * * *
 
-29\. Current Phase 1 API State
-==============================
+29\. Historical Phase 1 API State
+=================================
 
-Phase 1 establishes the API contract and routing structure.
+Phase 1 established the API contract and routing structure.
 
-Currently implemented:
-
--   FastAPI application
-
--   API version prefix
-
--   health endpoint
-
--   analysis routes
-
--   request schemas
-
--   response schemas
-
--   stable error schema
-
--   application exception handling
-
--   orchestrator interface
-
--   OpenAPI route registration
-
-Currently not implemented:
+At the end of Phase 1, the following were intentionally not implemented:
 
 -   actual document processing
 
@@ -1057,74 +1219,29 @@ Currently not implemented:
 
 -   persistent analysis storage
 
-Therefore, Phase 1 API endpoints intentionally do not perform real analysis.
+Therefore, Phase 1 analysis endpoints intentionally did not perform real analysis.
+
+This section is retained as historical project information.
 
 * * * * *
 
-30\. API Contract Invariants
-============================
-
-The following rules are architectural invariants:
-
-1.  API version prefix remains `/api/v1`.
-
-2.  `AnalysisResult` remains the canonical analysis response structure.
-
-3.  Resume-only mode never fabricates JD-specific results.
-
-4.  ScoreEngine owns official scoring.
-
-5.  XAIEngine explains results but does not redefine them.
-
-6.  RecommendationEngine owns recommendations.
-
-7.  API routes do not contain analytical algorithms.
-
-8.  API routes communicate with the orchestrator rather than individual engines.
-
-9.  Application errors use the stable error contract.
-
-10. Confidence uses the canonical 0--1 scale.
-
-11. Public scores use the 0--100 scale.
-
-12. Frontend integration depends on stable contracts rather than internal backend implementation details.
-
-* * * * *
-
-31\. Phase 1 Validation Status
-==============================
-
-The following API routes have been registered and verified through the generated OpenAPI schema:
-
-```
-GET    /api/v1/health
-POST   /api/v1/analyses/resume
-POST   /api/v1/analyses/resume-jd
-GET    /api/v1/analyses/{analysis_id}
-DELETE /api/v1/analyses/{analysis_id}
-
-```
-
-The API contract is therefore established as the baseline for subsequent implementation phases.
-
-Phase 2 Document Processing Boundary
-------------------------------------
+30\. Phase 2 Document Processing Boundary
+=========================================
 
 Phase 2 implements the internal document-processing infrastructure without changing the public analysis API contract.
 
-The existing analysis endpoints remain unchanged:
+The existing analysis endpoints remain:
 
 ```
 POST /api/v1/analyses/resume
+
 POST /api/v1/analyses/resume-jd
-GET  /api/v1/analyses/{analysis_id}
+
+GET /api/v1/analyses/{analysis_id}
 
 ```
 
-The endpoints remain intentionally non-implemented until the downstream analytical pipeline is introduced.
-
-Phase 2 introduces:
+Phase 2 introduced:
 
 ```
 DocumentProcessor
@@ -1137,4 +1254,438 @@ This is an internal infrastructure boundary and is not exposed as a new public A
 
 The document parser output must not be substituted for `AnalysisResult`, because `ParsedDocument` represents normalized document content while `AnalysisResult` represents the complete analytical result contract.
 
-Therefore, no public API contract change is required for Phase 2.
+Therefore, no public API contract change was required for Phase 2.
+
+* * * * *
+
+31\. Phase 3 Resume Intelligence Boundary
+=========================================
+
+Phase 3 extends the internal analytical implementation while preserving the public API contract.
+
+The Phase 3 pipeline is:
+
+```
+ParsedDocument
+      ↓
+Resume Structure Interpretation
+      ↓
+Skill Extraction
+      ↓
+Skill Normalization
+      ↓
+ESCO Mapping
+      ↓
+Evidence Linking
+      ↓
+Confidence Estimation
+      ↓
+ResumeProfile
+
+```
+
+Phase 3 Components
+------------------
+
+The implemented components are:
+
+```
+backend/app/analysis/resume_structure.py
+
+backend/app/analysis/skill_extractor.py
+
+backend/app/analysis/skill_normalizer.py
+
+backend/app/analysis/esco_mapper.py
+
+backend/app/analysis/resume_profile_builder.py
+
+```
+
+### Resume Structure
+
+`ResumeStructureInterpreter` interprets supported resume sections including:
+
+-   Summary
+
+-   Experience
+
+-   Education
+
+-   Projects
+
+-   Certifications
+
+-   Skills
+
+Unknown headings remain explicitly classified as `UNKNOWN`.
+
+### Skill Extraction
+
+`SkillExtractor` extracts skill mentions from:
+
+-   Skills
+
+-   Certifications
+
+-   Summary
+
+-   Experience
+
+-   Projects
+
+-   Education
+
+Skill evidence retains source provenance, offsets, evidence type, and extraction confidence.
+
+### Skill Normalization
+
+`SkillNormalizer` performs:
+
+-   Unicode normalization
+
+-   case normalization
+
+-   whitespace normalization
+
+-   alias resolution
+
+-   canonical skill naming
+
+### ESCO Mapping
+
+`ESCOMapper` provides the ESCO taxonomy integration boundary.
+
+Current ESCO version:
+
+```
+1.2.1
+
+```
+
+The current implementation uses a deterministic representative adapter vocabulary.
+
+It is not the complete ESCO dataset.
+
+No fabricated ESCO identifiers are used.
+
+### Resume Profile Construction
+
+`ResumeProfileBuilder` constructs the canonical domain:
+
+```
+ResumeProfile
+
+```
+
+It provides:
+
+-   deterministic profile identifiers
+
+-   deterministic skill identifiers
+
+-   deterministic evidence identifiers
+
+-   skill deduplication
+
+-   evidence merging
+
+-   confidence aggregation
+
+-   skill categories
+
+-   summary extraction
+
+-   ESCO metadata
+
+-   builder metadata
+
+The builder does not invent unsupported resume facts.
+
+* * * * *
+
+32\. Phase 3 API Contract Impact
+================================
+
+Phase 3 does **not** introduce:
+
+-   new public endpoints
+
+-   a new API version
+
+-   a competing resume response model
+
+-   a competing skill model
+
+-   a new analysis result structure
+
+The existing API contract remains the public integration boundary.
+
+Phase 3 enriches the internal implementation behind that contract.
+
+The canonical relationship is:
+
+```
+API Request
+    ↓
+AnalysisOrchestrator
+    ↓
+DocumentProcessor
+    ↓
+ParsedDocument
+    ↓
+Resume Intelligence Pipeline
+    ↓
+ResumeProfile
+    ↓
+AnalysisResult
+    ↓
+API Response
+
+```
+
+The complete API-to-orchestrator integration is a later implementation step.
+
+* * * * *
+
+33\. Phase 3 Verification
+=========================
+
+Phase 3 was verified through:
+
+-   unit tests
+
+-   integration tests
+
+-   real DOCX processing
+
+-   real PDF processing
+
+-   full backend regression
+
+Full regression result:
+
+```
+115 passed
+7 warnings
+0 failures
+
+```
+
+Command:
+
+```
+PYTHONPATH=. pytest backend/tests -q
+
+```
+
+The warnings are dependency/deprecation warnings and did not cause test failures.
+
+* * * * *
+
+34\. Real Document Verification
+===============================
+
+Real fixtures were added:
+
+```
+backend/tests/fixtures/phase3_sample_resume.pdf
+
+backend/tests/fixtures/phase3_sample_resume.docx
+
+```
+
+The DOCX fixture successfully demonstrated:
+
+```
+ParsedDocument
+→ Resume Structure
+→ Skill Extraction
+→ Skill Normalization
+→ ESCO Mapping
+→ ResumeProfile
+
+```
+
+The PDF fixture successfully demonstrated:
+
+-   real PDF parsing
+
+-   text extraction
+
+-   source provenance
+
+The current frozen PDF parser does not reliably infer synthetic semantic headings from ordinary PDF text blocks.
+
+Therefore:
+
+```
+DOCX → complete semantic Phase 3 verification
+
+PDF → parsing and provenance verification
+
+```
+
+Phase 2 was not modified to bypass this limitation.
+
+* * * * *
+
+35\. API Contract Invariants
+============================
+
+The following rules are architectural invariants:
+
+1.  API version prefix remains `/api/v1`.
+
+2.  `AnalysisResult` remains the canonical analysis response structure.
+
+3.  `ResumeProfile` remains the canonical resume representation.
+
+4.  `ParsedDocument` remains the canonical output of document processing.
+
+5.  Resume-only mode never fabricates JD-specific results.
+
+6.  `DocumentProcessor` owns document parsing.
+
+7.  `SkillExtractor` owns skill extraction.
+
+8.  `SkillNormalizer` owns skill normalization.
+
+9.  `ESCOMapper` owns ESCO mapping.
+
+10. `ResumeProfileBuilder` owns construction of the canonical resume profile.
+
+11. `ScoreEngine` owns official scoring.
+
+12. `XAIEngine` explains results but does not redefine them.
+
+13. `RecommendationEngine` owns recommendations.
+
+14. API routes do not contain analytical algorithms.
+
+15. API routes communicate with the orchestrator rather than individual engines.
+
+16. Application errors use the stable error contract.
+
+17. Confidence uses the canonical 0--1 scale.
+
+18. Public scores use the 0--100 scale.
+
+19. Evidence retains source provenance.
+
+20. Frontend integration depends on stable contracts rather than internal backend implementation details.
+
+21. Later phases must not reparse PDF/DOCX files outside the Phase 2 document-processing boundary.
+
+22. No duplicate analytical ownership may be introduced.
+
+* * * * *
+
+36\. Current API and Analytical State
+=====================================
+
+```
+API Contract
+    COMPLETE / STABLE
+
+Phase 2 Document Processing
+    COMPLETE / FROZEN
+
+Phase 3 Resume Intelligence
+    COMPLETE / VERIFIED
+
+Full API → Orchestrator → Analysis Integration
+    NOT YET COMPLETE
+
+Resume-JD Matching
+    NOT IMPLEMENTED
+
+Semantic Matching
+    NOT IMPLEMENTED
+
+Skill-Gap Scoring
+    NOT IMPLEMENTED
+
+Final Match Scoring
+    NOT IMPLEMENTED
+
+XAI Engine
+    NOT IMPLEMENTED
+
+Career Intelligence
+    NOT IMPLEMENTED
+
+Recommendation Engine
+    NOT IMPLEMENTED
+
+```
+
+The API contract remains stable while these analytical capabilities are implemented incrementally.
+
+* * * * *
+
+37\. Next Planned API Evolution
+===============================
+
+The next analytical phases should integrate the completed resume-intelligence pipeline into the canonical `AnalysisOrchestrator` and progressively populate `AnalysisResult`.
+
+Future API work must preserve:
+
+```
+/api/v1
+
+```
+
+unless a genuine breaking contract change requires a new API version.
+
+Future implementations must not bypass the established:
+
+```
+API
+ ↓
+AnalysisOrchestrator
+ ↓
+Domain Engines
+ ↓
+Infrastructure
+
+```
+
+architecture.
+---
+
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
+
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
+
+The complete Phase 4 workflow is:
+
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
+
+Completed Phase 4 stages:
+
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
+
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
+
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
+
+Final verification:
+
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
+
+The complete Phase 4 implementation history is documented in:
+
+`docs/PHASE_4.md`
+
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

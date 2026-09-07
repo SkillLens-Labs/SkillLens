@@ -6,1456 +6,715 @@ SkillLens --- Session Handoff
 
 This document provides the minimum context required to continue SkillLens development in a new development or AI-assisted coding session.
 
-It is intended to prevent loss of project context between sessions.
+It must be read together with:
 
-The next development session must read this document together with:
+```
+PROJECT_MASTER.md
+PROJECT_STATUS.md
+ARCHITECTURE.md
+API_CONTRACT.md
+DATA_SCHEMA.md
+CODEBASE_MAP.md
+FEATURES.md
+CHANGELOG.md
 
--   `PROJECT_MASTER.md`
+```
 
--   `PROJECT_STATUS.md`
-
--   `ARCHITECTURE.md`
-
--   `API_CONTRACT.md`
-
--   `DATA_SCHEMA.md`
-
--   `CODEBASE_MAP.md`
-
--   `CHANGELOG.md`
-
-These documents together form the project's persistent development context.
+These documents form the persistent project context.
 
 * * * * *
 
 2\. Project Identity
 ====================
 
-Project name:
+**Project Name:**
 
-`SkillLens`
+```
+SkillLens
 
-Project title:
+```
 
-`XAI-Driven Semantic Skill Gap Analysis using Transformer-Based Language Models`
+**Project Title:**
 
-Project type:
+```
+XAI-Driven Semantic Skill Gap Analysis using Transformer-Based Language Models
 
-Academic software engineering and AI/NLP project.
+```
 
-Primary objective:
+**Project Type:**
 
-Build an explainable AI system that analyzes a candidate resume, optionally compares it against a job description, identifies semantic skill matches and gaps, evaluates candidate-job compatibility, explains the results, provides career intelligence, and generates actionable recommendations.
+Academic software engineering and AI/NLP research project.
 
-* * * * *
+**Primary objective:**
 
-3\. Current Development Phase
-=============================
-
-Current phase:
-
-`Phase 1 --- Foundation and Architecture`
-
-Phase 1 is complete.
-
-The project has intentionally not yet implemented the advanced NLP, machine-learning, semantic matching, XAI, or recommendation pipeline.
-
-Do not skip directly into advanced implementation without establishing the next phase's requirements.
+Build an explainable AI platform that analyzes candidate resumes, optionally compares them against job descriptions, identifies semantic skill matches and gaps, explains analytical results, and generates actionable career recommendations.
 
 * * * * *
 
-4\. Current Repository Location
-===============================
-
-Project root:
-
-`/Users/raghuviranturkar/SkillLens`
-
-Backend:
-
-`/Users/raghuviranturkar/SkillLens/backend`
-
-Frontend:
-
-`/Users/raghuviranturkar/SkillLens/frontend`
-
-Python virtual environment:
-
-`/Users/raghuviranturkar/SkillLens/skilllens`
-
-* * * * *
-
-5\. Python Environment
-======================
-
-Python environment was created using:
-
-`/opt/homebrew/bin/python3.12`
-
-Verified Python version:
-
-`Python 3.12.13`
-
-The active project Python executable is:
-
-`/Users/raghuviranturkar/SkillLens/skilllens/bin/python`
-
-The virtual environment directory is excluded from Git.
-
-Do not create a second project virtual environment unless there is a documented reason.
-
-* * * * *
-
-6\. Frontend Environment
-========================
-
-Current Node.js version:
-
-`22.14.0`
-
-Current npm version:
-
-`10.9.2`
-
-Frontend stack:
-
--   React
-
--   TypeScript
-
--   Vite
-
-Current frontend dependencies were installed successfully.
-
-* * * * *
-
-7\. Git Status and Repository
-=============================
-
-Git version:
-
-`2.50.1`
-
-Current branch:
-
-`main`
-
-Remote repository:
-
-`https://github.com/raghuviranturkar/SkillLens.git`
-
-The GitHub repository was created and the remote was configured.
-
-At the current recorded state, the repository has not yet been pushed with the complete Phase 1 implementation.
-
-Before committing or pushing, inspect:
-
--   `git status`
-
--   `.gitignore`
-
--   generated files
-
--   project documentation
-
--   dependency files
-
-* * * * *
-
-8\. Backend Architecture
-========================
-
-Backend follows a modular monolith.
-
-Primary dependency direction:
-
-`API → Orchestration → Domain → Infrastructure`
-
-The backend must not evolve into a collection of unrelated services.
-
-The Analysis Orchestrator is the central workflow coordinator.
-
-* * * * *
-
-9\. Canonical Analytical Engines
-================================
-
-The project has one canonical engine for each major analytical responsibility:
-
-1.  `DocumentProcessor`
-
-2.  `SkillExtractor`
-
-3.  `SkillNormalizer`
-
-4.  `SemanticMatcher`
-
-5.  `GapAnalyzer`
-
-6.  `ScoreEngine`
-
-7.  `XAIEngine`
-
-8.  `CareerIntelligenceEngine`
-
-9.  `RecommendationEngine`
-
-These responsibilities must not be duplicated across multiple modules.
-
-* * * * *
-
-10\. Engine Interaction Rule
-============================
-
-Analytical engines must not directly call one another.
-
-Incorrect:
-
-`SkillExtractor → SkillNormalizer → SemanticMatcher → GapAnalyzer`
-
-Correct architectural pattern:
-
-`AnalysisOrchestrator`
-
-coordinates:
-
-`DocumentProcessor`
-
-then:
-
-`SkillExtractor`
-
-then:
-
-`SkillNormalizer`
-
-then:
-
-`SemanticMatcher`
-
-then:
-
-`GapAnalyzer`
-
-then:
-
-`ScoreEngine`
-
-then:
-
-`XAIEngine`
-
-then:
-
-`CareerIntelligenceEngine`
-
-then:
-
-`RecommendationEngine`
-
-The exact execution path may vary by analysis mode and available data, but the orchestrator remains responsible for coordination.
-
-* * * * *
-
-11\. Analysis Modes
-===================
-
-SkillLens supports two analysis modes.
-
-RESUME_ONLY
------------
-
-Input:
-
--   resume
-
-Purpose:
-
-Understand and analyze the candidate profile.
-
-Resume-only analysis may produce:
-
--   candidate profile
-
--   extracted skills
-
--   normalized skills
-
--   experience information
-
--   domains
-
--   career signals
-
--   strengths
-
--   potential roles
-
--   skill priorities
-
--   recommendations
-
-Resume-only analysis must not fabricate:
-
--   job-specific match scores
-
--   missing job skills
-
--   candidate-job compatibility
-
--   job-specific skill gaps
-
-* * * * *
-
-RESUME_JD
----------
-
-Input:
-
--   resume
-
--   job description
-
-Purpose:
-
-Compare the candidate against a specific role.
-
-May produce:
-
--   resume profile
-
--   job profile
-
--   skill matches
-
--   skill gaps
-
--   compatibility score
-
--   dimension scores
-
--   explanations
-
--   career intelligence
-
--   recommendations
-
-* * * * *
-
-12\. Canonical AnalysisResult
-=============================
-
-`AnalysisResult` is the single source of truth for a completed analysis.
-
-It contains:
-
--   analysis ID
-
--   schema version
-
--   analysis mode
-
--   status
-
--   creation timestamp
-
--   input
-
--   resume profile
-
--   optional job profile
-
--   skill analysis
-
--   scoring
-
--   XAI
-
--   career intelligence
-
--   recommendations
-
--   metadata
-
-The frontend must ultimately consume this canonical result through the API.
-
-* * * * *
-
-13\. Scoring Ownership
-======================
-
-`ScoreEngine` owns official scoring.
-
-No other engine should independently calculate an alternative official compatibility score.
-
-Public score:
-
-`0--100`
-
-Internal calculations may use:
-
-`0--1`
-
-Scoring should be deterministic, transparent, configurable, and testable.
-
-* * * * *
-
-14\. XAI Ownership
-==================
-
-`XAIEngine` owns explainability.
-
-XAI explains existing analytical outputs.
-
-It must not independently redefine:
-
--   skill matches
-
--   gaps
-
--   official scores
-
--   recommendations
-
-Primary planned explainability approach:
-
-`SHAP`
-
-Possible alternative:
-
-`LIME`
-
-* * * * *
-
-15\. Recommendation Ownership
-=============================
-
-`RecommendationEngine` owns recommendation generation.
-
-Recommendations should be connected to:
-
--   detected gaps
-
--   evidence
-
--   priorities
-
--   expected impact
-
--   effort
-
--   confidence
-
-Other engines may provide information used by the recommendation engine but must not create competing recommendation systems.
-
-* * * * *
-
-16\. Confidence Standard
-========================
-
-Canonical confidence score:
-
-`0--1`
-
-Confidence includes:
-
--   score
-
--   level
-
--   components
-
--   rationale
-
-The same convention should be maintained throughout the backend and frontend.
-
-* * * * *
-
-17\. Current Backend Files
-==========================
-
-Current backend foundation includes:
-
-`backend/app/main.py`
-
-`backend/app/api/routes/health.py`
-
-`backend/app/api/routes/analyses.py`
-
-`backend/app/core/config.py`
-
-`backend/app/core/exceptions.py`
-
-`backend/app/core/logging.py`
-
-`backend/app/domain/analysis.py`
-
-`backend/app/domain/career.py`
-
-`backend/app/domain/confidence.py`
-
-`backend/app/domain/evidence.py`
-
-`backend/app/domain/gaps.py`
-
-`backend/app/domain/job.py`
-
-`backend/app/domain/matching.py`
-
-`backend/app/domain/recommendations.py`
-
-`backend/app/domain/resume.py`
-
-`backend/app/domain/scoring.py`
-
-`backend/app/domain/skill.py`
-
-`backend/app/domain/xai.py`
-
-`backend/app/schemas/requests.py`
-
-`backend/app/schemas/responses.py`
-
-`backend/app/schemas/errors.py`
-
-`backend/app/orchestration/analysis_orchestrator.py`
-
-* * * * *
-
-18\. Important Current Backend Limitation
-=========================================
-
-The analytical engine implementations are not yet complete.
-
-The following files are planned but not yet implemented:
-
--   `document_processor.py`
-
--   `skill_extractor.py`
-
--   `skill_normalizer.py`
-
--   `semantic_matcher.py`
-
--   `gap_analyzer.py`
-
--   `score_engine.py`
-
--   `xai_engine.py`
-
--   `career_engine.py`
-
--   `recommendation_engine.py`
-
-Do not state that these engines are already functional.
-
-* * * * *
-
-19\. Current API
-================
-
-API prefix:
-
-`/api/v1`
-
-Current endpoints:
-
-`GET /api/v1/health`
-
-`POST /api/v1/analyses/resume`
-
-`POST /api/v1/analyses/resume-jd`
-
-`GET /api/v1/analyses/{analysis_id}`
-
-`DELETE /api/v1/analyses/{analysis_id}`
-
-* * * * *
-
-20\. Current API Behavior
-=========================
-
-The health endpoint is functional.
-
-The analysis endpoints currently exist as contracts but do not execute the real analytical pipeline.
-
-They currently return:
-
-`ANALYSIS_NOT_IMPLEMENTED`
-
-This is intentional because Phase 1 established the API contract before implementing the analytical system.
-
-Do not replace the API contract with an ad-hoc design.
-
-* * * * *
-
-21\. Current Frontend Files
-===========================
-
-Current important frontend files include:
-
-`frontend/src/main.tsx`
-
-`frontend/src/app/App.tsx`
-
-`frontend/src/state/analysisState.ts`
-
-`frontend/src/types/analysis.ts`
-
-`frontend/src/types/api.ts`
-
-The frontend currently contains a minimal application shell.
-
-The production UI will be implemented in later phases.
-
-* * * * *
-
-22\. Frontend Type Contract
-===========================
-
-The frontend already contains TypeScript representations of the canonical backend analysis structures.
-
-Important types include:
-
--   `AnalysisResult`
-
--   `ResumeProfile`
-
--   `JobProfile`
-
--   `Skill`
-
--   `Evidence`
-
--   `SkillMatch`
-
--   `SkillGap`
-
--   `ScoringResult`
-
--   `XAIResult`
-
--   `CareerIntelligence`
-
--   `Recommendation`
-
-Do not create a second incompatible analysis-result structure for individual pages.
-
-* * * * *
-
-23\. Current Frontend State
-===========================
-
-`frontend/src/state/analysisState.ts`
-
-Current state statuses:
-
--   idle
-
--   submitting
-
--   loading
-
--   success
-
--   error
-
-The state stores:
-
--   current analysis
-
--   error information
-
--   request ID
-
-Future state management should preserve the canonical API contract.
-
-* * * * *
-
-24\. Backend Dependencies
-=========================
-
-Current backend dependencies are intentionally minimal:
-
--   FastAPI
-
--   Uvicorn
-
--   Pydantic
-
--   Pydantic Settings
-
--   python-multipart
-
--   pytest
-
--   pytest-asyncio
-
--   httpx
-
-Advanced ML/NLP dependencies have not yet been installed.
-
-These include:
-
--   transformers
-
--   sentence-transformers
-
--   torch
-
--   spaCy
-
--   SHAP
-
--   LIME
-
--   scikit-learn
-
--   NumPy
-
--   pandas
-
--   PyMuPDF
-
--   python-docx
-
-Install advanced dependencies only when required by the corresponding implementation phase.
-
-* * * * *
-
-25\. Planned NLP/ML Stack
-=========================
-
-The planned analytical stack includes:
-
--   transformer-based NLP
-
--   Sentence Transformers
-
--   semantic embeddings
-
--   ESCO or another validated skills taxonomy
-
--   hybrid keyword + semantic + taxonomy matching
-
--   SHAP-based explainability
-
--   optional LIME alternative
-
--   local/open-source LLM through Ollama or an equivalent approach
-
-Initial semantic embedding candidate:
-
-`all-MiniLM-L6-v2`
-
-The final model should be selected through evaluation rather than assumed to be optimal.
-
-* * * * *
-
-26\. LLM Boundary
+3\. Current Phase
 =================
 
-The LLM must not become the primary semantic similarity engine.
+```
+Phase 3 --- Resume Intelligence Pipeline
 
-Semantic similarity should be handled through a deterministic embedding/matching pipeline.
-
-The LLM may later be used for tasks such as:
-
--   natural-language explanation
-
--   summarization
-
--   recommendation phrasing
-
--   conversational assistance
-
-The LLM should not silently replace the canonical analytical engines.
-
-* * * * *
-
-27\. Document Processing Plan
-=============================
-
-Planned supported document types:
-
--   PDF
-
--   DOCX
-
-The DocumentProcessor should provide a normalized representation to downstream components.
-
-Document parsing must preserve evidence and source information wherever possible.
-
-* * * * *
-
-28\. Evidence Requirement
-=========================
-
-Important analytical conclusions should be traceable to source evidence.
-
-Evidence may include:
-
--   source document
-
--   section
-
--   extracted text
-
--   offsets
-
--   evidence type
-
--   extractor
-
--   relevance
-
--   confidence
-
-Evidence is important for both XAI and academic evaluation.
-
-* * * * *
-
-29\. Testing Strategy
-=====================
-
-Testing is divided into:
-
--   unit tests
-
--   integration tests
-
--   API tests
-
--   evaluation tests
-
--   regression tests
-
-The project should not rely only on manual testing.
-
-Analytical components require both functional tests and quality evaluation.
-
-* * * * *
-
-30\. Current Backend Test Status
-================================
-
-Command:
-
-`python -m pytest backend/tests -q`
-
-Current recorded result:
-
-`9 passed`
-
-There are two non-blocking dependency-related warnings associated with the current test setup.
-
-Do not change dependency versions solely to eliminate warnings without checking compatibility.
-
-* * * * *
-
-31\. Current Frontend Verification
-==================================
-
-Lint:
-
-`npm run lint`
-
-Result:
-
-PASS
-
-Build:
-
-`npm run build`
-
-Result:
-
-PASS
-
-The frontend currently compiles successfully.
-
-* * * * *
-
-32\. Current Backend Compilation
-================================
-
-Command:
-
-`python -m compileall -q backend`
-
-Result:
-
-PASS
-
-* * * * *
-
-33\. Architecture Verification
-==============================
-
-Dependency-direction verification:
-
-`NONE`
-
-Duplicate module-name verification:
-
-`NONE`
-
-These checks should remain clean after future modifications.
-
-* * * * *
-
-34\. Phase 1 Completion Criteria
-================================
-
-Phase 1 successfully established:
-
--   repository structure
-
--   backend architecture
-
--   frontend architecture
-
--   domain contracts
-
--   API contracts
-
--   frontend type contracts
-
--   orchestrator interface
-
--   test structure
-
--   configuration
-
--   exception handling
-
--   logging
-
--   documentation
-
--   validation workflow
-
-Phase 1 does not include the complete AI/NLP analytical pipeline.
-
-* * * * *
-
-35\. Immediate Next Step
-========================
-
-The next development phase should begin by defining the implementation boundary and tests for the first real analytical capability.
-
-Before writing advanced implementation code:
-
-1.  Read the project documentation.
-
-2.  Inspect the current repository.
-
-3.  Confirm the Phase 1 validation results.
-
-4.  Identify the exact next phase objective.
-
-5.  Define the relevant interfaces.
-
-6.  Define tests before or alongside implementation.
-
-7.  Implement only the agreed scope.
-
-8.  Run validation.
-
-9.  Update `PROJECT_STATUS.md`.
-
-10. Update `CHANGELOG.md`.
-
-11. Update `SESSION_HANDOFF.md`.
-
-Do not implement unrelated future features during the phase.
-
-* * * * *
-
-36\. AI-Assisted Development Protocol
-=====================================
-
-When continuing development with an AI coding assistant, provide this context before requesting implementation.
-
-The AI should understand:
-
--   this is SkillLens
-
--   Phase 1 is complete
-
--   architecture is frozen unless explicitly changed
-
--   implementation is incremental
-
--   no duplicate engines
-
--   no direct engine-to-engine calls
-
--   AnalysisOrchestrator coordinates workflow
-
--   AnalysisResult is canonical
-
--   ScoreEngine owns scoring
-
--   XAIEngine owns explainability
-
--   RecommendationEngine owns recommendations
-
--   evidence must be preserved
-
--   resume-only must not fabricate job-specific results
-
-The AI must inspect existing files before creating new ones.
-
-* * * * *
-
-37\. Rules for Future Changes
-=============================
-
-Before creating a new module, ask:
-
-`Does an existing canonical module already own this responsibility?`
-
-If yes:
-
-Modify or extend the existing module.
-
-Do not create a second implementation.
-
-Before adding a dependency, ask:
-
-`Is this dependency necessary for the current phase?`
-
-If no:
-
-Do not add it yet.
-
-Before changing a domain structure, check:
-
--   `DATA_SCHEMA.md`
-
--   backend domain models
-
--   frontend TypeScript models
-
--   `API_CONTRACT.md`
-
-Before changing an API endpoint, check:
-
--   API contract
-
--   backend route
-
--   frontend API types
-
--   tests
-
-* * * * *
-
-38\. What Must Not Happen
-=========================
-
-Do not:
-
--   introduce microservices
-
--   introduce Redis without a real requirement
-
--   introduce Celery without a real requirement
-
--   introduce Kafka
-
--   introduce Kubernetes
-
--   create duplicate scoring logic
-
--   create duplicate recommendation logic
-
--   allow engines to directly call each other
-
--   put analytical algorithms inside API routes
-
--   put backend algorithms inside React components
-
--   fabricate job-specific results in resume-only mode
-
--   use an LLM as a replacement for semantic matching
-
--   add large dependencies without justification
-
--   implement multiple future phases simultaneously
-
--   rewrite working architecture unnecessarily
-
-* * * * *
-
-39\. Expected Development Style
-===============================
-
-Development should be incremental and verifiable.
-
-Preferred sequence:
-
-`Design → Contract → Implementation → Test → Verification → Documentation`
-
-Each phase should end with a known, reproducible repository state.
-
-Avoid large uncontrolled changes across backend, frontend, ML, and infrastructure simultaneously.
-
-* * * * *
-
-40\. Documentation Update Rule
-==============================
-
-Whenever a meaningful implementation change is completed, update the appropriate documentation.
-
-At minimum:
-
-`PROJECT_STATUS.md`
-
-`CHANGELOG.md`
-
-If architecture or contracts change, also update:
-
-`ARCHITECTURE.md`
-
-`API_CONTRACT.md`
-
-`DATA_SCHEMA.md`
-
-If repository structure changes, update:
-
-`CODEBASE_MAP.md`
-
-At the end of a development session, update:
-
-`SESSION_HANDOFF.md`
-
-* * * * *
-
-41\. Current Known Warnings
-===========================
-
-Backend tests currently produce two non-blocking warnings related to the test client/dependency ecosystem.
-
-These warnings do not currently cause test failure.
-
-They should be reviewed during dependency maintenance rather than treated as Phase 1 blockers.
-
-* * * * *
-
-42\. Current Known Limitations
-==============================
-
-The following limitations are expected at this stage:
-
--   no real document parsing
-
--   no real skill extraction
-
--   no semantic embedding pipeline
-
--   no ESCO integration
-
--   no skill matching implementation
-
--   no gap-analysis implementation
-
--   no scoring implementation
-
--   no XAI implementation
-
--   no career intelligence implementation
-
--   no recommendation implementation
-
--   no persistent analysis storage
-
--   minimal frontend UI
-
-These are planned development tasks, not architectural failures.
-
-* * * * *
-
-43\. Session Continuation Checklist
-===================================
-
-At the beginning of a new session:
-
--   Read `PROJECT_MASTER.md`
-
--   Read `PROJECT_STATUS.md`
-
--   Read `ARCHITECTURE.md`
-
--   Read `API_CONTRACT.md`
-
--   Read `DATA_SCHEMA.md`
-
--   Read `CODEBASE_MAP.md`
-
--   Read this file
-
--   Inspect Git status
-
--   Inspect current repository structure
-
--   Confirm current phase
-
--   Confirm the exact task before coding
-
-Before ending the session:
-
--   Run backend compilation
-
--   Run backend tests
-
--   Run frontend lint
-
--   Run frontend build
-
--   Review changed files
-
--   Update project status
-
--   Update changelog
-
--   Update session handoff
-
--   Record unresolved issues
-
--   Record the exact next task
-
-* * * * *
-
-44\. Current Handoff State
-==========================
-
-Project:
-
-`SkillLens`
-
-Phase:
-
-`Phase 1 --- Foundation and Architecture`
+```
 
 Status:
 
-`Complete`
+```
+COMPLETE / VERIFIED
 
-Architecture:
+```
 
-`Established and frozen`
+Latest commit:
 
-Backend:
+```
+0b73efe Complete Phase 3 resume intelligence pipeline
 
-`Foundation complete`
+```
 
-Frontend:
+Working tree:
 
-`Foundation complete`
+```
+Clean
 
-API:
+```
 
-`Contracts established`
+Full regression:
 
-Domain:
+```
+115 passed
+7 warnings
+0 failures
 
-`Canonical structures established`
-
-Analytical engines:
-
-`Planned, not yet implemented`
-
-Testing:
-
-`Passing`
-
-Documentation:
-
-`Foundation documentation established`
-
-Immediate direction:
-
-`Begin the next implementation phase incrementally, starting with the first approved analytical capability.`
+```
 
 * * * * *
 
-SkillLens --- Phase 2 Session Handoff
-===================================
+4\. Completed Phase History
+===========================
 
-Current State
--------------
+Phase 1
+-------
 
-**Project:** SkillLens
+```
+Foundation and Architecture
+COMPLETE
 
-**Phase:** Phase 2 --- Document Processing
+```
 
-**Phase 1:** Complete and frozen
+Established:
 
-**Phase 2:** Implementation complete; final freeze pending
+-   repository structure
 
-Phase 2 Completed
------------------
+-   modular monolith
 
-The document-processing infrastructure is implemented under:
+-   backend foundation
 
-`backend/app/infrastructure/parsers/`
+-   frontend foundation
+
+-   canonical domain contracts
+
+-   API contracts
+
+-   Analysis Orchestrator interface
+
+-   testing foundation
+
+-   documentation foundation
+
+* * * * *
+
+Phase 2
+-------
+
+```
+Document Processing
+COMPLETE / FROZEN
+
+```
+
+Established:
+
+-   PDF parsing
+
+-   DOCX parsing
+
+-   `DocumentProcessor`
+
+-   document validation
+
+-   `ParsedDocument`
+
+-   document block provenance
+
+Phase 2 must not be modified casually.
+
+* * * * *
+
+Phase 3
+-------
+
+```
+Resume Intelligence Pipeline
+COMPLETE / VERIFIED
+
+```
 
 Implemented:
 
--   Parser abstraction
-
--   PDF parser
-
--   DOCX parser
-
--   Document validation
-
--   Document processor
-
--   Normalized document models
-
--   Source provenance
-
--   Parser contract tests
-
-Supported Formats
------------------
-
--   PDF
-
--   DOCX
-
-Normalized Output
------------------
-
-The parser layer produces:
-
-`ParsedDocument`
-
-containing:
-
--   document identifier
-
--   document type
-
--   normalized blocks
-
--   document metadata
-
-Each block contains source-location information where available.
-
-Verification
-------------
-
-Latest verification:
-
--   Backend: **70 passed**
-
--   Parsed-document contract tests: **8 passed**
-
--   Python compilation: **passed**
-
--   API route inspection: **passed**
-
--   OpenAPI verification: **passed**
-
--   Frontend TypeScript: **passed**
-
--   Frontend production build: **passed**
-
--   `git diff --check`: **passed**
-
--   Temporary `tmp/` directory: **removed**
-
-API Boundary
-------------
-
-The Phase 1 analysis API remains unchanged.
-
-The following endpoints remain intentionally non-implemented:
-
 ```
-POST /api/v1/analyses/resume
-POST /api/v1/analyses/resume-jd
-GET  /api/v1/analyses/{analysis_id}
+ParsedDocument
+    ↓
+Resume Structure Interpretation
+    ↓
+Skill Extraction
+    ↓
+Skill Normalization
+    ↓
+ESCO Mapping
+    ↓
+Evidence Linking
+    ↓
+Confidence Estimation
+    ↓
+ResumeProfile
 
 ```
 
-They continue to return the controlled Phase 1 `501 Not Implemented` behavior.
+* * * * *
 
-Phase 2 does not wire the parser directly into these endpoints because doing so would cross the Phase 2 boundary into downstream resume/JD extraction and analytical processing.
+5\. Phase 3 Files
+=================
 
-Important Architectural Rule
-----------------------------
+Implementation:
 
-Do not make the parser layer perform:
+```
+backend/app/analysis/resume_structure.py
+backend/app/analysis/skill_extractor.py
+backend/app/analysis/skill_normalizer.py
+backend/app/analysis/esco_mapper.py
+backend/app/analysis/resume_profile_builder.py
 
--   Skill extraction
+```
 
--   Semantic matching
+Unit tests:
 
--   Scoring
+```
+backend/tests/unit/test_resume_structure.py
+backend/tests/unit/test_skill_extractor.py
+backend/tests/unit/test_skill_normalizer.py
+backend/tests/unit/test_esco_mapper.py
+backend/tests/unit/test_resume_profile_builder.py
 
--   XAI
+```
 
--   Recommendations
+Integration test:
 
--   Career intelligence
+```
+backend/tests/integration/test_phase3_resume_analysis.py
 
--   LLM analysis
+```
 
-The parser output is the handoff boundary for future phases.
+Real fixtures:
 
-Next Phase
+```
+backend/tests/fixtures/phase3_sample_resume.pdf
+backend/tests/fixtures/phase3_sample_resume.docx
+
+```
+
+* * * * *
+
+6\. Frozen Phase 2 Contract
+===========================
+
+Phase 2 produces:
+
+```
+ParsedDocument
+
+```
+
+with document blocks containing:
+
+-   text
+
+-   block type
+
+-   source location
+
+-   optional style
+
+-   optional section
+
+-   metadata
+
+Phase 3 consumes this representation directly.
+
+**Do not reparse PDF or DOCX files inside Phase 3.**
+
+**Do not modify the Phase 2 parser merely to make Phase 3 tests easier.**
+
+* * * * *
+
+7\. Phase 3 Components
+======================
+
+ResumeStructureInterpreter
+--------------------------
+
+Interprets the structure of a parsed resume.
+
+Recognizes:
+
+-   Summary
+
+-   Experience
+
+-   Education
+
+-   Projects
+
+-   Certifications
+
+-   Skills
+
+Unknown headings remain `UNKNOWN`.
+
+* * * * *
+
+SkillExtractor
+--------------
+
+Extracts deterministic skill mentions.
+
+Explicit evidence:
+
+-   Skills
+
+-   Certifications
+
+Contextual evidence:
+
+-   Summary
+
+-   Experience
+
+-   Projects
+
+-   Education
+
+Each mention preserves source information and confidence.
+
+* * * * *
+
+SkillNormalizer
+---------------
+
+Converts skill mentions into canonical names.
+
+Normalization includes:
+
+-   Unicode normalization
+
+-   case normalization
+
+-   whitespace normalization
+
+-   alias mapping
+
+Examples:
+
+```
+ReactJS → react
+JS → javascript
+Py → python
+Postgres → postgresql
+Mongo → mongodb
+ML → machine learning
+
+```
+
+* * * * *
+
+ESCOMapper
 ----------
 
-The next phase has **not started**.
+Current ESCO version:
 
-Before starting the next phase:
+```
+1.2.1
 
-1.  Complete final Phase 2 repository verification.
+```
 
-2.  Create the initial Git baseline/freeze commit.
+Current implementation is a deterministic adapter with representative mappings.
 
-3.  Review the Phase 2 documentation.
+It is **not** the complete ESCO dataset.
 
-4.  Create the next-phase development plan.
+No fake ESCO URIs or identifiers are permitted.
 
-5.  Begin implementation only after the next phase is explicitly authorized.
+* * * * *
 
-Development Workflow
+ResumeProfileBuilder
 --------------------
 
-All future implementation must follow:
+Builds the canonical:
+
+```
+ResumeProfile
+
+```
+
+It provides:
+
+-   deterministic IDs
+
+-   skill deduplication
+
+-   evidence merging
+
+-   confidence aggregation
+
+-   categories
+
+-   summary
+
+-   ESCO metadata
+
+-   builder metadata
+
+The builder must not invent unsupported resume facts.
+
+* * * * *
+
+8\. Important Phase 3 Verification Finding
+==========================================
+
+Real DOCX processing successfully demonstrated the complete semantic pipeline.
+
+Real PDF processing successfully demonstrated:
+
+-   PDF parsing
+
+-   text extraction
+
+-   provenance
+
+However, the frozen PDF parser currently does not reliably classify synthetic text headings as semantic heading blocks.
+
+Therefore:
+
+```
+DOCX → full Phase 3 semantic verification
+PDF  → parsing/provenance verification
+
+```
+
+This is a known limitation of the current frozen Phase 2 parser.
+
+Do not solve it by adding a second PDF parser inside Phase 3.
+
+* * * * *
+
+9\. Canonical Domain Models
+===========================
+
+Important existing domain contracts include:
+
+```
+ResumeProfile
+Contact
+Education
+Experience
+Project
+Certification
+Skill
+Evidence
+Confidence
+JobProfile
+SkillMatch
+SkillAnalysis
+SkillGap
+ScoringResult
+XAIResult
+CareerIntelligence
+Recommendation
+AnalysisResult
+
+```
+
+Do not create competing versions of these models.
+
+* * * * *
+
+10\. Architecture Rules
+=======================
+
+SkillLens is a modular monolith.
+
+Dependency direction:
+
+```
+API
+ ↓
+Analysis Orchestrator
+ ↓
+Domain Engines
+ ↓
+Infrastructure
+
+```
+
+There must be exactly one:
+
+```
+AnalysisOrchestrator
+
+```
+
+Workflow coordination belongs to the orchestrator.
+
+Engines should not become independent workflow coordinators.
+
+* * * * *
+
+11\. Canonical Analytical Responsibilities
+==========================================
+
+Current and planned responsibilities:
+
+```
+DocumentProcessor
+ResumeStructureInterpreter
+SkillExtractor
+SkillNormalizer
+ESCOMapper
+ResumeProfileBuilder
+SemanticMatcher
+GapAnalyzer
+ScoreEngine
+XAIEngine
+CareerIntelligenceEngine
+RecommendationEngine
+
+```
+
+There must not be duplicate implementations of major responsibilities.
+
+* * * * *
+
+12\. Explicitly Out of Phase 3
+==============================
+
+Do not assume these are implemented:
+
+-   Job Description analysis
+
+-   resume-JD matching
+
+-   semantic similarity
+
+-   hybrid matching
+
+-   skill-gap scoring
+
+-   final match score
+
+-   XAI scoring
+
+-   career intelligence
+
+-   role recommendations
+
+-   learning recommendations
+
+-   Ollama
+
+-   LLM recommendation generation
+
+-   frontend dashboard redesign
+
+These are later-phase responsibilities.
+
+* * * * *
+
+13\. Testing Command
+====================
+
+Activate the project environment:
+
+```
+source ~/SkillLens/skilllens/bin/activate
+
+```
+
+Run the complete backend test suite:
+
+```
+cd ~/SkillLens
+PYTHONPATH=. pytest backend/tests -q
+
+```
+
+Current baseline:
+
+```
+115 passed, 7 warnings
+
+```
+
+Never claim a test suite passes without running it.
+
+* * * * *
+
+14\. Development Workflow
+=========================
+
+Every future phase should follow:
 
 ```
 READ
-→ INSPECT
-→ PLAN
-→ IMPLEMENT
-→ TEST
-→ INTEGRATE
-→ VERIFY
-→ FREEZE
+ ↓
+INSPECT
+ ↓
+PLAN
+ ↓
+IMPLEMENT
+ ↓
+TEST
+ ↓
+INTEGRATE
+ ↓
+VERIFY
+ ↓
+FREEZE
 
 ```
 
-Do not begin the next analytical phase automatically.
+Do not skip repository inspection before implementation.
 
- Final Instruction for the Next AI Session
-==============================================
+Do not assume contracts that have not been inspected.
 
-Do not assume that planned components are already implemented.
+Do not modify frozen Phase 2 components without explicit architectural justification.
 
-First inspect the actual repository.
+* * * * *
 
-Treat the documented architecture and contracts as the source of truth.
+15\. Git State
+==============
 
-Do not redesign the system unless explicitly instructed.
+Current branch:
 
-Do not jump ahead to later phases.
+```
+main
 
-Implement only the current approved task, verify it thoroughly, and update the project documentation before moving forward.
+```
 
+Latest commit:
+
+```
+0b73efe Complete Phase 3 resume intelligence pipeline
+
+```
+
+Working tree:
+
+```
+Clean
+
+```
+
+Before any new implementation:
+
+```
+git status
+git log -1 --oneline
+
+```
+
+* * * * *
+
+16\. Next Planned Phase
+=======================
+
+```
+Phase 4 --- Resume Quality & ATS Intelligence
+
+```
+
+Status:
+
+```
+PLANNED / NOT STARTED
+
+```
+
+Phase 4 must begin with requirements and architecture inspection.
+
+Do not start implementation automatically.
+
+* * * * *
+
+17\. Immediate Next-Session Instruction
+=======================================
+
+The next development session should:
+
+1.  Read this handoff.
+
+2.  Read `PROJECT_MASTER.md`.
+
+3.  Read `PROJECT_STATUS.md`.
+
+4.  Inspect the current repository state.
+
+5.  Review the Phase 4 objective.
+
+6.  Inspect existing contracts relevant to Phase 4.
+
+7.  Plan Phase 4 before modifying code.
+
+8.  Preserve the Phase 2 frozen boundary.
+
+9.  Preserve the canonical `ResumeProfile`.
+
+10. Run regression tests before and after implementation.
+
+The current Phase 3 implementation is complete and should be treated as the stable baseline for Phase 4.
+---
+
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
+
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
+
+The complete Phase 4 workflow is:
+
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
+
+Completed Phase 4 stages:
+
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
+
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
+
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
+
+Final verification:
+
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
+
+The complete Phase 4 implementation history is documented in:
+
+`docs/PHASE_4.md`
+
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

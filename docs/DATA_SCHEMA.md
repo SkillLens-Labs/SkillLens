@@ -1,100 +1,114 @@
-# SkillLens --- Data Schema
+SkillLens --- Data Schema
+=======================
 
-## 1\. Purpose
+1\. Purpose
+-----------
 
-This document defines the canonical data structures used throughout SkillLens.
+This document defines the canonical data structures and data boundaries used throughout SkillLens.
 
-The data schema provides a shared contract between:
+The schema provides a shared contract between:
 
-- document processing
+-   document processing
 
-- skill extraction
+-   resume analysis
 
-- skill normalization
+-   skill extraction
 
-- semantic matching
+-   skill normalization
 
-- gap analysis
+-   ESCO mapping
 
-- scoring
+-   evidence and confidence tracking
 
-- explainability
+-   future semantic matching
 
-- career intelligence
+-   gap analysis
 
-- recommendations
+-   scoring
 
-- API responses
+-   explainability
 
-- frontend state
+-   career intelligence
 
-The objective is to ensure that every layer uses consistent representations of the same analytical concepts.
+-   recommendations
 
----
+-   API responses
 
-# 2\. Schema Design Principles
+-   frontend state
 
-The SkillLens data model follows these principles:
+The objective is to ensure that each analytical concept has one consistent representation.
+
+* * * * *
+
+2\. Schema Design Principles
+============================
+
+SkillLens follows these principles:
 
 1.  Every major analytical concept has one canonical representation.
 
 2.  Domain models are independent of API transport details.
 
-3.  Evidence should be preserved whenever an analytical conclusion is generated.
+3.  Source evidence should be preserved whenever an analytical conclusion is generated.
 
-4.  Confidence uses a consistent 0--1 scale.
+4.  Confidence uses a `0--1` scale.
 
-5.  Public scores use a 0--100 scale.
+5.  Public compatibility scores use a `0--100` scale.
 
-6.  Resume-only analysis must support a null job profile.
+6.  Optional analytical modules use explicit `null` or empty collections rather than fabricated values.
 
-7.  Analysis results must be serializable for API responses and persistence.
+7.  Identifiers remain stable within an analysis.
 
-8.  Optional analytical modules must be represented explicitly rather than through fabricated values.
+8.  Resume-only analysis must not invent job-related information.
 
-9.  Identifiers should remain stable within an analysis.
+9.  Breaking schema changes require schema versioning.
 
-10. Schema changes should be versioned when they are breaking.
+10. Phase boundaries must be respected; downstream components consume established contracts rather than duplicating upstream processing.
 
----
+* * * * *
 
-# 3\. Schema Version
+3\. Schema Version
+==================
 
-Every `AnalysisResult` contains:
+`AnalysisResult` contains:
 
 `schema_version`
 
-Initial schema version:
+Current initial schema version:
 
 `1.0`
 
-The schema version allows future versions of the data contract to be introduced without silently changing the meaning of existing analysis results.
+Schema versioning allows future breaking changes without silently changing the meaning of previously generated analysis results.
 
----
+* * * * *
 
-# 4\. Identifier Conventions
+4\. Identifier Conventions
+==========================
 
-The following identifiers are used throughout the system:
+Canonical identifiers include:
 
-- `analysis_id` --- unique analysis identifier
+-   `analysis_id` --- unique analysis identifier
 
-- `document_id` --- unique uploaded document identifier
+-   `document_id` --- source document identifier
 
-- `profile_id` --- unique resume or job profile identifier
+-   `profile_id` --- resume or job profile identifier
 
-- `skill_id` --- unique normalized skill identifier
+-   `skill_id` --- normalized skill identifier
 
-- `evidence_id` --- unique evidence identifier
+-   `evidence_id` --- evidence identifier
 
-- `recommendation_id` --- unique recommendation identifier
+-   `recommendation_id` --- recommendation identifier
 
-Identifiers should be unique within their respective entity scope and should not depend on display names.
+-   `gap_id` --- skill-gap identifier
 
----
+Identifiers should not depend on display names.
 
-# 5\. AnalysisResult
+* * * * *
 
-`AnalysisResult` is the canonical top-level data structure.
+5\. AnalysisResult
+==================
+
+`AnalysisResult` is the canonical top-level analytical result.
 
 Conceptual structure:
 
@@ -117,67 +131,49 @@ AnalysisResult
 
 ```
 
-## Fields
+### Core fields
 
-### analysis_id
+`analysis_id`
 
-Unique identifier for the analysis.
+Unique analysis identifier.
 
-Type:
+`schema_version`
 
-`string`
+Version of the result schema.
 
-### schema_version
-
-Version of the analysis schema.
-
-Type:
-
-`string`
-
-### analysis_mode
-
-Analysis mode.
+`analysis_mode`
 
 Allowed values:
 
-- `RESUME_ONLY`
+-   `RESUME_ONLY`
 
-- `RESUME_JD`
+-   `RESUME_JD`
 
-### status
-
-Current analysis status.
+`status`
 
 Allowed values:
 
-- `pending`
+-   `pending`
 
-- `processing`
+-   `processing`
 
-- `completed`
+-   `completed`
 
-- `failed`
+-   `failed`
 
-### created_at
+`created_at`
 
-Timestamp representing when the analysis was created.
+Creation timestamp. API representations should use ISO 8601.
 
-Type:
+`input`
 
-`datetime`
+Information about source documents and analysis configuration.
 
-The API representation should use an ISO 8601 compatible string.
+`resume_profile`
 
-### input
+Canonical structured representation of the resume.
 
-Contains information about the documents and analysis configuration used as input.
-
-### resume_profile
-
-Canonical parsed and inferred resume representation.
-
-### job_profile
+`job_profile`
 
 Canonical job-description representation.
 
@@ -189,57 +185,38 @@ For `RESUME_JD`:
 
 A populated `JobProfile`.
 
-### skill_analysis
+`skill_analysis`
 
-Contains extracted skills, matches, gaps, and related analytical information.
+Skill-level analytical results.
 
-### scoring
+`scoring`
 
-Contains official scoring output.
+Official scoring result.
 
-For `RESUME_ONLY`:
+For resume-only analysis, JD-dependent scoring is `null`.
 
-`null` for JD-dependent scoring.
+`xai`
 
-### xai
+Explainability result when available; otherwise `null`.
 
-Contains explainability results when XAI is enabled and available.
+`career_intelligence`
 
-Otherwise:
+Higher-level career analysis when available.
 
-`null`
+`recommendations`
 
-### career_intelligence
+Generated recommendations. An empty list means no recommendations were generated.
 
-Contains career-level inference.
+`metadata`
 
-For example:
+Technical and analytical metadata.
 
-- experience level
+* * * * *
 
-- domains
-
-- strengths
-
-- potential roles
-
-- career signals
-
-### recommendations
-
-List of generated recommendations.
-
-### metadata
-
-Technical and analytical metadata associated with the analysis.
-
----
-
-# 6\. AnalysisInput
+6\. AnalysisInput
+=================
 
 `AnalysisInput` describes the source documents and analysis configuration.
-
-Conceptual structure:
 
 ```
 AnalysisInput
@@ -250,67 +227,69 @@ AnalysisInput
 
 ```
 
-## resume_document_id
+`resume_document_id`
 
-Identifier of the resume document.
+Required resume document identifier.
 
-Required:
+`job_document_id`
 
-Yes
-
-## job_document_id
-
-Identifier of the job-description document.
-
-Required:
-
-Only for `RESUME_JD`.
+Required only for `RESUME_JD`.
 
 For `RESUME_ONLY`:
 
 `null`
 
-## options
+`options`
 
-Contains analysis options.
+Analysis configuration.
 
-## client_metadata
+`client_metadata`
 
-Optional metadata supplied by the client.
+Optional client-supplied metadata.
 
----
+* * * * *
 
-# 7\. AnalysisMetadata
+7\. AnalysisMetadata
+====================
 
-`AnalysisMetadata` contains technical information that does not belong directly to the analytical domain.
+`AnalysisMetadata` contains technical information associated with processing.
 
-Potential fields include:
+Possible fields include:
 
-- processing time
+-   processing time
 
-- parser information
+-   parser information
 
-- model information
+-   extractor versions
 
-- extractor versions
+-   taxonomy version
 
-- taxonomy version
+-   pipeline version
 
-- pipeline version
+-   warnings
 
-- warnings
+-   diagnostics
 
-- diagnostic information
+Metadata must not replace canonical analytical fields.
 
-Metadata should not replace canonical analytical fields.
+Phase 3 metadata may include:
 
----
+-   builder version
 
-# 8\. ResumeProfile
+-   ESCO version
 
-`ResumeProfile` represents the structured interpretation of a resume.
+-   skill count
 
-Conceptual structure:
+-   extraction diagnostics
+
+* * * * *
+
+8\. ResumeProfile
+=================
+
+`ResumeProfile` is the canonical structured representation of a resume.
+
+Current conceptual structure:
 
 ```
 ResumeProfile
@@ -331,237 +310,223 @@ ResumeProfile
 
 ```
 
-## profile_id
+### Core fields
 
-Unique resume profile identifier.
+`profile_id`
 
-## document_id
+Unique resume-profile identifier.
 
-Source resume document identifier.
+`document_id`
 
-## candidate_summary
+Source `ParsedDocument` identifier.
 
-Structured or extracted candidate summary.
+`candidate_summary`
 
-## contact
+Candidate summary when extracted.
 
-Contact information extracted from the resume.
+`contact`
 
-## education
+Contact information when available.
 
-List of education records.
+`education[]`
 
-## experience
+Education records.
 
-List of professional experience records.
+`experience[]`
 
-## projects
+Professional experience records.
 
-List of projects.
+`projects[]`
 
-## certifications
+Project records.
 
-List of certifications.
+`certifications[]`
 
-## skills
+Certification records.
 
-Normalized candidate skills.
+`skills[]`
 
-## skill_categories
+Canonical normalized skills identified from the resume.
 
-High-level grouping of candidate skills.
+`skill_categories[]`
 
-Examples:
-
-- programming
-
-- data
-
-- cloud
-
-- database
-
-- machine learning
-
-- software engineering
-
-- soft skills
-
-## total_experience
-
-Estimated or extracted total professional experience.
-
-The exact representation will be defined by the domain implementation.
-
-## seniority
-
-Inferred or extracted experience level.
+High-level skill categories.
 
 Examples:
 
-- student
+-   programming
 
-- entry
+-   data
 
-- junior
+-   web
 
-- mid
+-   cloud_devops
 
-- senior
+-   database
 
-- lead
+-   machine learning
 
-## domains
+`total_experience`
 
-Candidate's identified professional domains.
+Experience information when it can be reliably extracted.
 
-Examples:
+`seniority`
 
-- data science
+Inferred seniority when supported by evidence.
 
-- software engineering
+`domains[]`
 
-- machine learning
+Identified professional domains.
 
-- web development
+`metadata`
 
-## metadata
+Additional structured processing information.
 
-Additional structured information.
+### Phase 3 status
 
----
+Phase 3 establishes the resume-profile construction boundary and populates canonical skills, skill categories, evidence, confidence, and provenance.
 
-# 9\. Contact
+Fields for detailed education, experience, projects, certifications, total experience, seniority, and domains remain available for future structured extraction and must not be populated with invented information.
 
-`Contact` represents contact information extracted from a resume.
+* * * * *
+
+9\. Contact
+===========
+
+`Contact` represents resume contact information.
 
 Potential fields:
 
-- name
+-   name
 
-- email
+-   email
 
-- phone
+-   phone
 
-- location
+-   location
 
-- LinkedIn
+-   LinkedIn
 
-- GitHub
+-   GitHub
 
-- portfolio
+-   portfolio
 
-Sensitive information should be handled according to the application's privacy requirements.
+Contact information is optional and is not required for analytical processing.
 
-Contact information should not be required for analytical processing.
+* * * * *
 
----
-
-# 10\. Education
+10\. Education
+==============
 
 `Education` represents an educational qualification.
 
 Potential fields:
 
-- institution
+-   institution
 
-- degree
+-   degree
 
-- field
+-   field
 
-- start_date
+-   start_date
 
-- end_date
+-   end_date
 
-- grade
+-   grade
 
-- description
+-   description
 
-- evidence
+-   evidence
 
-The model should preserve extracted evidence where possible.
+Extracted evidence should be preserved where possible.
 
----
+* * * * *
 
-# 11\. Experience
+11\. Experience
+===============
 
-`Experience` represents professional or relevant work experience.
-
-Potential fields:
-
-- company
-
-- role
-
-- location
-
-- start_date
-
-- end_date
-
-- description
-
-- responsibilities
-
-- technologies
-
-- achievements
-
-- evidence
-
-Experience records should preserve source evidence when possible.
-
----
-
-# 12\. Project
-
-`Project` represents a project described in the resume.
+`Experience` represents professional or relevant experience.
 
 Potential fields:
 
-- name
+-   company
 
-- description
+-   role
 
-- technologies
+-   location
 
-- responsibilities
+-   start_date
 
-- outcomes
+-   end_date
 
-- links
+-   description
 
-- evidence
+-   responsibilities
 
-Projects can provide important evidence for skill extraction even when formal work experience is limited.
+-   technologies
 
----
+-   achievements
 
-# 13\. Certification
+-   evidence
+
+Experience records should preserve source evidence where possible.
+
+* * * * *
+
+12\. Project
+============
+
+`Project` represents a project described in a resume.
+
+Potential fields:
+
+-   name
+
+-   description
+
+-   technologies
+
+-   responsibilities
+
+-   outcomes
+
+-   links
+
+-   evidence
+
+Projects may provide important evidence for skill extraction.
+
+* * * * *
+
+13\. Certification
+==================
 
 `Certification` represents a professional certification.
 
 Potential fields:
 
-- name
+-   name
 
-- issuing_organization
+-   issuing_organization
 
-- issue_date
+-   issue_date
 
-- expiry_date
+-   expiry_date
 
-- credential_id
+-   credential_id
 
-- credential_url
+-   credential_url
 
-- evidence
+-   evidence
 
----
+* * * * *
 
-# 14\. JobProfile
+14\. JobProfile
+===============
 
-`JobProfile` represents a structured interpretation of a job description.
+`JobProfile` is the canonical representation of a structured job description.
+
+This is a planned Phase 4+ analytical structure and was not implemented as part of Phase 3.
 
 Conceptual structure:
 
@@ -585,63 +550,14 @@ JobProfile
 
 ```
 
-## job_title
+The structure supports future JD analysis without changing the resume-analysis contract.
 
-Job title extracted from the job description.
+* * * * *
 
-## company
+15\. Skill
+==========
 
-Company or organization name when available.
-
-## summary
-
-Structured job summary.
-
-## responsibilities
-
-List of responsibilities extracted from the job description.
-
-## required_skills
-
-Skills explicitly required by the job.
-
-## preferred_skills
-
-Skills described as preferred, desirable, or optional.
-
-## technical_skills
-
-Technical requirements.
-
-## soft_skills
-
-Behavioral and interpersonal requirements.
-
-## domain_skills
-
-Domain-specific requirements.
-
-## experience_requirements
-
-Required experience information.
-
-## education_requirements
-
-Required educational qualifications.
-
-## seniority
-
-Expected job seniority.
-
-## metadata
-
-Additional job-processing information.
-
----
-
-# 15\. Skill
-
-`Skill` is the canonical representation of a skill throughout SkillLens.
+`Skill` is the canonical analytical representation of a normalized skill.
 
 Conceptual structure:
 
@@ -661,11 +577,13 @@ Skill
 
 ```
 
-## skill_id
+### Core fields
+
+`skill_id`
 
 Stable skill identifier.
 
-## canonical_name
+`canonical_name`
 
 Normalized internal skill name.
 
@@ -673,7 +591,7 @@ Example:
 
 `python`
 
-## display_name
+`display_name`
 
 Human-readable name.
 
@@ -681,58 +599,86 @@ Example:
 
 `Python`
 
-## category
+`category`
 
-Broad skill category.
+High-level skill category.
 
-Example:
+`subcategory`
 
-`Programming Language`
+Optional finer classification.
 
-## subcategory
+`aliases[]`
 
-More specific classification where available.
+Known alternative forms.
 
-## aliases
+`proficiency`
 
-Known alternative names.
+Only populated when sufficient evidence exists.
 
-Example:
+`importance`
 
-```
-["Python Programming", "Python 3"]
+Primarily relevant to job-description skills.
 
-```
+`evidence[]`
 
-## proficiency
+Evidence supporting the skill.
 
-Estimated proficiency when sufficient evidence exists.
-
-This should not be fabricated when the resume does not provide adequate evidence.
-
-## importance
-
-Importance of the skill in its source context.
-
-This is particularly relevant for job-description skills.
-
-## evidence
-
-Source evidence supporting the skill.
-
-## confidence
+`confidence`
 
 Confidence that the skill was correctly identified and normalized.
 
-## metadata
+`metadata`
 
-Additional taxonomy or extraction information.
+Additional extraction or taxonomy information.
 
----
+* * * * *
 
-# 16\. Evidence
+16\. NormalizedSkill
+====================
 
-`Evidence` connects an analytical result to its source text.
+Phase 3 introduces an explicit normalization representation:
+
+```
+NormalizedSkill
+├── canonical_name
+├── raw_text
+└── extraction_confidence
+
+```
+
+The normalization layer:
+
+-   applies Unicode normalization
+
+-   normalizes whitespace and case
+
+-   resolves known aliases
+
+-   produces a canonical skill identity
+
+-   preserves the original extracted text
+
+-   preserves extraction confidence
+
+Examples:
+
+```
+Python Programming → python
+Python 3           → python
+ReactJS            → react
+Postgres           → postgresql
+ML                 → machine learning
+
+```
+
+Normalization does not perform semantic matching.
+
+* * * * *
+
+17\. Evidence
+=============
+
+`Evidence` connects an analytical result to its source.
 
 Conceptual structure:
 
@@ -752,89 +698,121 @@ Evidence
 
 ```
 
-## source_type
+### Source information
 
-Identifies where the evidence originated.
+`source_type`
 
-Possible values include:
-
-- resume
-
-- job_description
-
-- generated_analysis
-
-The final enum should be defined centrally rather than duplicated across modules.
-
-## source_document_id
-
-Document from which the evidence originated.
-
-## section
-
-Document section containing the evidence.
+Identifies the source of evidence.
 
 Examples:
 
-- Skills
+-   `resume`
 
-- Experience
+-   `job_description`
 
-- Projects
+-   `generated_analysis`
 
-- Education
+`source_document_id`
 
-- Requirements
+Source document identifier.
 
-## text
+`section`
 
-Relevant source text.
-
-## start_offset
-
-Character or token offset where the evidence begins, when available.
-
-## end_offset
-
-Character or token offset where the evidence ends, when available.
-
-## evidence_type
-
-Type of supporting evidence.
+Logical section containing the evidence.
 
 Examples:
 
-- explicit_skill
+-   Skills
 
-- contextual_skill
+-   Experience
 
-- experience
+-   Projects
 
-- project
+-   Education
 
-- requirement
+-   Requirements
 
-- achievement
+`text`
 
-## extractor
+Source text associated with the evidence.
+
+`start_offset` / `end_offset`
+
+Character offsets when available.
+
+`evidence_type`
+
+Examples:
+
+-   `explicit_skill`
+
+-   `contextual_skill`
+
+-   `experience`
+
+-   `project`
+
+-   `requirement`
+
+-   `achievement`
+
+`extractor`
 
 Component responsible for identifying the evidence.
 
-## relevance
+`relevance`
 
-Relevance score for the evidence.
+Optional relevance value.
 
-## confidence
+`confidence`
 
 Confidence in the evidence interpretation.
 
----
+* * * * *
 
-# 17\. Confidence
+18\. SkillMention
+=================
 
-`Confidence` provides a standardized representation of analytical confidence.
+Phase 3 introduces `SkillMention` as the intermediate extraction representation.
 
-Structure:
+Conceptual structure:
+
+```
+SkillMention
+├── raw_text
+├── skill_name
+├── evidence_type
+├── block
+├── start_offset
+├── end_offset
+└── confidence
+
+```
+
+A `SkillMention` represents a detected occurrence before normalization and profile construction.
+
+It preserves:
+
+-   original text
+
+-   source block
+
+-   offsets
+
+-   evidence type
+
+-   extraction confidence
+
+`SkillMention` is an intermediate analysis structure and is not the final canonical profile skill.
+
+* * * * *
+
+19\. Confidence
+===============
+
+`Confidence` provides a standardized confidence representation.
+
+Conceptual structure:
 
 ```
 Confidence
@@ -845,49 +823,136 @@ Confidence
 
 ```
 
-## score
-
-Numeric confidence.
+`score`
 
 Range:
 
 `0--1`
 
-## level
+`level`
 
 Allowed values:
 
-- `low`
+-   `low`
 
-- `medium`
+-   `medium`
 
-- `high`
+-   `high`
 
-## components
+`components`
 
-Breakdown of contributing confidence signals.
+Contributing signals, such as:
 
-Examples:
+-   extraction confidence
 
-- extraction_confidence
+-   semantic confidence
 
-- semantic_confidence
+-   evidence confidence
 
-- evidence_confidence
+-   taxonomy confidence
 
-- taxonomy_confidence
+`rationale`
 
-## rationale
+Human-readable explanation when required.
 
-Human-readable explanation of the confidence assessment.
+Phase 3 uses confidence during skill extraction, ESCO mapping, and final profile construction.
 
----
+* * * * *
 
-# 18\. SkillMatch
+20\. ESCO Mapping
+=================
+
+Phase 3 introduces ESCO mapping as a separate analytical boundary.
+
+Conceptual structure:
+
+```
+ESCOMapResult
+├── input_name
+├── status
+├── candidates[]
+└── mapping_method
+
+```
+
+Mapping status:
+
+-   `MAPPED`
+
+-   `AMBIGUOUS`
+
+-   `UNMAPPED`
+
+An ESCO candidate may contain:
+
+-   canonical name
+
+-   URI
+
+-   confidence
+
+-   description
+
+The implementation currently uses a deterministic adapter vocabulary and ESCO version metadata.
+
+Current ESCO version:
+
+`1.2.1`
+
+A missing ESCO URI must remain empty rather than being replaced with a fabricated identifier.
+
+The architecture allows the official ESCO dataset or API to be connected later through the mapper boundary.
+
+* * * * *
+
+21\. Resume Profile Skill Construction
+======================================
+
+Phase 3 establishes the following data flow:
+
+```
+ParsedDocument
+      ↓
+Resume Structure
+      ↓
+SkillMention[]
+      ↓
+NormalizedSkill[]
+      ↓
+ESCO Mapping
+      ↓
+Evidence + Confidence
+      ↓
+ResumeProfile
+
+```
+
+The `ResumeProfileBuilder` is responsible for converting these intermediate results into the canonical resume representation.
+
+The builder:
+
+-   deduplicates canonical skills
+
+-   merges evidence
+
+-   preserves provenance
+
+-   aggregates confidence
+
+-   assigns deterministic skill categories
+
+-   records processing metadata
+
+-   does not invent unsupported candidate information
+
+* * * * *
+
+22\. SkillMatch
+===============
 
 `SkillMatch` represents a relationship between a resume skill and a job skill.
 
-Conceptual structure:
+This is a future semantic-matching structure.
 
 ```
 SkillMatch
@@ -901,49 +966,30 @@ SkillMatch
 
 ```
 
-## relationship
+Possible relationships:
 
-Allowed relationship types:
+-   `exact`
 
-- `exact`
+-   `strong_semantic`
 
-- `strong_semantic`
+-   `partial`
 
-- `partial`
+-   `related`
 
-- `related`
+-   `unmatched`
 
-- `unmatched`
+Similarity and confidence use the `0--1` internal scale.
 
-The relationship describes the semantic relationship rather than simply storing a binary match.
+Skill matching is not implemented in Phase 3.
 
-## similarity
+* * * * *
 
-Semantic similarity score.
+23\. SkillGap
+=============
 
-Internal range:
+`SkillGap` represents a candidate-job skill gap.
 
-`0--1`
-
-## confidence
-
-Confidence in the match decision.
-
-## evidence
-
-Evidence supporting the relationship.
-
-## rationale
-
-Explanation of why the relationship was assigned.
-
----
-
-# 19\. SkillGap
-
-`SkillGap` represents an identified gap between the candidate and job requirements.
-
-Conceptual structure:
+Future structure:
 
 ```
 SkillGap
@@ -959,49 +1005,24 @@ SkillGap
 
 ```
 
-## gap_type
+Possible gap types:
 
-Examples:
+-   `missing`
 
-- missing
+-   `partial`
 
-- partial
+-   `insufficient_proficiency`
 
-- insufficient_proficiency
+-   `contextual_gap`
 
-- contextual_gap
+Skill-gap analysis is not implemented in Phase 3.
 
-## severity
+* * * * *
 
-Represents the importance of the identified gap.
+24\. SkillAnalysis
+==================
 
-## importance
-
-Importance of the skill to the target job.
-
-## evidence
-
-Evidence supporting the gap.
-
-## related_matches
-
-Matching information related to the gap.
-
-## rationale
-
-Explanation of why the gap was identified.
-
-## confidence
-
-Confidence in the gap classification.
-
----
-
-# 20\. SkillAnalysis
-
-`SkillAnalysis` combines the skill-level analytical results.
-
-Conceptual structure:
+`SkillAnalysis` combines skill-level analytical results.
 
 ```
 SkillAnalysis
@@ -1015,23 +1036,22 @@ SkillAnalysis
 
 For `RESUME_ONLY`:
 
-- `resume_skills` is populated
+-   `resume_skills` is populated when skills are found
 
-- `job_skills` is empty
+-   `job_skills` is empty
 
-- `skill_matches` is empty
+-   `skill_matches` is empty
 
-- JD-specific `skill_gaps` are not generated
+-   JD-specific skill gaps are not generated
 
-For `RESUME_JD`:
+For `RESUME_JD`, applicable fields may be populated after JD analysis and matching are implemented.
 
-all applicable skill-analysis fields may be populated.
+* * * * *
 
----
+25\. ScoringResult
+==================
 
-# 21\. ScoringResult
-
-`ScoringResult` contains the official candidate-job scoring output.
+`ScoringResult` is the future canonical representation of candidate-job compatibility scoring.
 
 Conceptual structure:
 
@@ -1052,141 +1072,20 @@ ScoringResult
 
 ```
 
-## overall_score
-
-Public overall compatibility score.
-
-Range:
+Public score range:
 
 `0--100`
-
-## skill_score
-
-Overall skill compatibility.
-
-Range:
-
-`0--100`
-
-## required_skill_score
-
-Compatibility with required skills.
-
-Range:
-
-`0--100`
-
-## preferred_skill_score
-
-Compatibility with preferred skills.
-
-Range:
-
-`0--100`
-
-## experience_score
-
-Experience compatibility.
-
-Range:
-
-`0--100`
-
-## education_score
-
-Education compatibility.
-
-Range:
-
-`0--100`
-
-## domain_score
-
-Domain compatibility.
-
-Range:
-
-`0--100`
-
-## dimension_scores
-
-Structured scoring information for individual dimensions.
-
-## weights
-
-Weights used by ScoreEngine.
-
-## penalties
-
-Applied score penalties.
-
-## bonuses
-
-Applied score bonuses.
-
-## confidence
-
-Confidence in the scoring result.
 
 ScoreEngine is the sole owner of official score calculation.
 
----
+Scoring is not implemented in Phase 3.
 
-# 22\. DimensionScore
+* * * * *
 
-`DimensionScore` represents one scoring dimension.
+26\. XAIResult
+==============
 
-Potential fields:
-
-- dimension
-
-- score
-
-- weight
-
-- contribution
-
-- rationale
-
-- confidence
-
-Example dimensions:
-
-- skills
-
-- experience
-
-- education
-
-- domain
-
----
-
-# 23\. ScoreAdjustment
-
-A score adjustment represents an explicit penalty or bonus.
-
-Potential fields:
-
-- type
-
-- amount
-
-- reason
-
-- related_skill_ids
-
-- evidence
-
-- confidence
-
-Adjustments must be transparent enough for XAIEngine to explain them.
-
----
-
-# 24\. XAIResult
-
-`XAIResult` represents explainability information derived from existing analytical results.
+`XAIResult` represents explanations derived from existing analytical outputs.
 
 Conceptual structure:
 
@@ -1204,128 +1103,74 @@ XAIResult
 
 ```
 
-XAIEngine does not own the official score.
+XAIEngine does not own official scores. It explains outputs produced by canonical analytical engines.
 
-It explains the outputs produced by other canonical engines.
+XAI is not implemented in Phase 3.
 
----
+* * * * *
 
-# 25\. SkillExplanation
-
-`SkillExplanation` provides an explanation for an individual skill-related result.
-
-Potential fields:
-
-- skill_id
-
-- explanation
-
-- relationship
-
-- contribution
-
-- evidence
-
-- confidence
-
----
-
-# 26\. EvidenceMapEntry
+27\. EvidenceMapEntry
+=====================
 
 `EvidenceMapEntry` connects an analytical conclusion to supporting evidence.
 
 Potential fields:
 
-- result_type
+-   `result_type`
 
-- result_id
+-   `result_id`
 
-- evidence_ids[]
+-   `evidence_ids[]`
 
-- explanation
+-   `explanation`
 
-- confidence
+-   `confidence`
 
-This structure allows the frontend to show users why a conclusion was produced.
+This structure supports future frontend explanations and traceability.
 
----
+* * * * *
 
-# 27\. CareerIntelligence
+28\. CareerIntelligence
+=======================
 
 `CareerIntelligence` represents higher-level career analysis.
 
-Conceptual structure:
+Potential areas include:
 
-```
-CareerIntelligence
-├── inferred_profile
-├── experience_level
-├── primary_domains[]
-├── secondary_domains[]
-├── strengths[]
-├── career_signals[]
-├── potential_roles[]
-├── role_fit[]
-├── transition_analysis
-├── skill_priorities[]
-├── risks[]
-└── confidence
+-   inferred profile
 
-```
+-   experience level
 
-This component may operate in both analysis modes.
+-   primary domains
 
-For `RESUME_ONLY`, it focuses on the candidate's profile.
+-   secondary domains
 
-For `RESUME_JD`, it can additionally consider the target job and identified gaps.
+-   strengths
 
----
+-   career signals
 
-# 28\. RoleFit
+-   potential roles
 
-`RoleFit` represents compatibility between a candidate profile and a potential career role.
+-   role fit
 
-Potential fields:
+-   transition analysis
 
-- role
+-   skill priorities
 
-- fit_score
+-   risks
 
-- supporting_skills
+-   confidence
 
-- missing_skills
+Career intelligence may eventually operate in both resume-only and resume-JD modes.
 
-- rationale
+It is not implemented in Phase 3.
 
-- confidence
+* * * * *
 
-The exact scoring mechanism will be defined during the Career Intelligence implementation phase.
+29\. Recommendation
+===================
 
----
-
-# 29\. SkillPriority
-
-`SkillPriority` represents a skill that should receive attention for career development.
-
-Potential fields:
-
-- skill
-
-- priority
-
-- reason
-
-- expected_impact
-
-- related_gap_ids
-
-- confidence
-
----
-
-# 30\. Recommendation
-
-`Recommendation` represents an actionable recommendation generated by RecommendationEngine.
+`Recommendation` represents an actionable recommendation generated from analytical results.
 
 Conceptual structure:
 
@@ -1345,65 +1190,32 @@ Recommendation
 
 ```
 
-## type
+Possible types:
 
-Recommendation category.
+-   `skill_development`
 
-Examples may include:
+-   `project`
 
-- skill_development
+-   `certification`
 
-- project
+-   `resume_improvement`
 
-- certification
-
-- resume_improvement
-
-- career_direction
-
-## target_skill
-
-Skill associated with the recommendation when applicable.
-
-## priority
-
-Priority level.
-
-## rationale
-
-Why the recommendation is relevant.
-
-## expected_impact
-
-Expected benefit.
-
-## effort
-
-Estimated effort.
-
-## evidence
-
-Supporting evidence.
-
-## related_gap_ids
-
-Skill gaps addressed by the recommendation.
-
-## confidence
-
-Confidence in the recommendation.
+-   `career_direction`
 
 RecommendationEngine is the sole recommendation owner.
 
----
+Recommendations are not implemented in Phase 3.
 
-# 31\. Resume-Only Schema Rules
+* * * * *
+
+30\. Resume-Only Schema Rules
+=============================
 
 When:
 
 `analysis_mode = RESUME_ONLY`
 
-the following rules apply:
+the system must enforce:
 
 ```
 job_profile = null
@@ -1414,95 +1226,104 @@ JD-specific skill gaps = not generated
 
 ```
 
-The system may still produce:
+Resume-only analysis may produce:
 
-- resume skills
+-   resume profile
 
-- candidate profile
+-   skills
 
-- career intelligence
+-   evidence
 
-- strengths
+-   confidence
 
-- career signals
+-   career intelligence
 
-- potential roles
+-   strengths
 
-- recommendations
+-   career signals
 
-- XAI where applicable
+-   potential roles
 
-The system must never invent a job description in order to produce a job match score.
+-   recommendations
 
----
+The system must never invent a job description to produce a match score.
 
-# 32\. Resume + JD Schema Rules
+* * * * *
+
+31\. Resume + JD Schema Rules
+=============================
 
 When:
 
 `analysis_mode = RESUME_JD`
 
-the system may populate:
+the system may eventually populate:
 
-- resume profile
+-   resume profile
 
-- job profile
+-   job profile
 
-- resume skills
+-   resume skills
 
-- job skills
+-   job skills
 
-- skill matches
+-   skill matches
 
-- skill gaps
+-   skill gaps
 
-- scoring
+-   scoring
 
-- XAI
+-   XAI
 
-- career intelligence
+-   career intelligence
 
-- recommendations
+-   recommendations
 
-All JD-specific outputs must be traceable to the supplied job description and/or candidate evidence.
+JD-specific outputs must remain traceable to the supplied job description and candidate evidence.
 
----
+* * * * *
 
-# 33\. Empty and Optional Values
+32\. Empty and Optional Values
+==============================
 
-The schema distinguishes between:
+SkillLens distinguishes between:
 
-- unavailable
+-   unavailable
 
-- not applicable
+-   not applicable
 
-- empty collection
+-   empty collection
 
-- null
+-   `null`
 
 Examples:
 
-`job_profile = null`
+```
+job_profile = null
 
-means a job profile is not applicable because the analysis is resume-only.
+```
 
-An empty:
+means a job profile is not applicable.
 
-`recommendations = []`
+```
+recommendations = []
 
-means the analysis completed but no recommendations were generated.
+```
 
-Optional analytical sections should use `null` when the corresponding module was intentionally unavailable or disabled.
+means the analysis completed but produced no recommendations.
 
-Collections should generally use empty lists rather than `null` when the concept exists but contains no items.
+Optional analytical modules should use `null` when unavailable or disabled.
 
----
+Collections should generally use empty lists when the concept exists but contains no items.
 
-# 34\. Evidence Preservation
+* * * * *
 
-Evidence should be preserved as close to the source as practical.
+33\. Evidence Preservation
+==========================
 
-The preferred relationship is:
+Evidence is a core architectural requirement.
+
+Preferred relationship:
 
 ```
 Source Document
@@ -1513,64 +1334,54 @@ Skill / Match / Gap / Explanation / Recommendation
 
 ```
 
-This allows the system to answer:
+The system should be able to answer:
 
-- What text caused this skill to be extracted?
+-   What source text caused this skill to be extracted?
 
-- Why was this skill considered a match?
+-   Why was this skill considered relevant?
 
-- Why was this skill identified as missing?
+-   Why was a skill considered missing?
 
-- Why did this skill affect the score?
+-   Why did a skill affect a score?
 
-- Why was this recommendation generated?
+-   Why was a recommendation generated?
 
-Evidence is therefore a core part of the explainability architecture.
+Phase 3 preserves document provenance through `DocumentBlock`, `SkillMention`, and final skill evidence.
 
----
+* * * * *
 
-# 35\. Confidence Propagation
+34\. Confidence Propagation
+===========================
 
-Confidence should be propagated through the analytical pipeline without changing its canonical scale.
+Confidence uses one canonical external scale:
 
-Example:
+`0--1`
+
+Conceptually:
 
 ```
 Document Evidence
       ↓
 Extraction Confidence
       ↓
-Normalization Confidence
+Normalization / Mapping Signals
       ↓
-Matching Confidence
+Analytical Confidence
       ↓
-Gap Confidence
-      ↓
-Scoring Confidence
-      ↓
-Explanation Confidence
+Future Matching / Gap / Scoring Confidence
 
 ```
 
-Each engine may use different internal signals, but the externally exposed confidence representation remains:
+Individual engines may use different internal signals, but exposed confidence remains standardized.
 
-`0--1`
+* * * * *
 
-with:
+35\. Numeric Scales
+===================
 
-- level
+SkillLens uses two primary numeric scales.
 
-- components
-
-- rationale
-
----
-
-# 36\. Internal vs Public Numeric Scales
-
-SkillLens uses different numeric scales for different purposes.
-
-## Public compatibility scores
+### Public compatibility scores
 
 Range:
 
@@ -1578,13 +1389,13 @@ Range:
 
 Used for:
 
-- overall score
+-   overall compatibility
 
-- dimension scores
+-   dimension scores
 
-- user-facing compatibility metrics
+-   user-facing scoring
 
-## Internal similarity values
+### Internal values
 
 Range:
 
@@ -1592,187 +1403,96 @@ Range:
 
 Used for:
 
-- semantic similarity
+-   confidence
 
-- confidence
+-   semantic similarity
 
-- model-level similarity calculations
+-   model-level similarity
 
-The system must not silently mix these scales.
+-   mapping confidence
 
----
+The two scales must never be silently mixed.
 
-# 37\. Schema Ownership
+* * * * *
 
-The domain layer is the canonical owner of domain data structures.
+36\. Domain, API, and Frontend Ownership
+========================================
 
-API schemas exist to represent transport contracts.
+The domain layer is the canonical owner of analytical data structures.
 
-Frontend TypeScript types mirror the stable API/domain contract.
-
-The architecture is:
+Architecture:
 
 ```
 Domain Models
-     ↓
+      ↓
 API Schemas
-     ↓
+      ↓
 JSON Response
-     ↓
+      ↓
 Frontend TypeScript Types
 
 ```
 
 The frontend must not become the source of truth for domain definitions.
 
----
+API schemas represent transport contracts and may differ from internal domain models when necessary.
 
-# 38\. Current Phase 1 Implementation Status
+* * * * *
 
-The canonical domain model files have been established under:
+37\. Phase 1 Schema Foundation
+==============================
+
+Phase 1 established the initial canonical domain model modules under:
 
 `backend/app/domain/`
 
-Current domain modules include:
+Including:
 
-- analysis.py
+-   `analysis.py`
 
-- resume.py
+-   `resume.py`
 
-- job.py
+-   `job.py`
 
-- skill.py
+-   `skill.py`
 
-- evidence.py
+-   `evidence.py`
 
-- confidence.py
+-   `confidence.py`
 
-- matching.py
+-   `matching.py`
 
-- gaps.py
+-   `gaps.py`
 
-- scoring.py
+-   `scoring.py`
 
-- xai.py
+-   `xai.py`
 
-- career.py
+-   `career.py`
 
-- recommendations.py
+-   `recommendations.py`
 
-The corresponding frontend analysis types have also been established under:
+Frontend analysis types were established under:
 
 `frontend/src/types/analysis.ts`
 
-The API request, response, and error contracts are defined under:
+API contracts are defined under:
 
 `backend/app/schemas/`
 
-Advanced analytical behavior is intentionally not implemented in Phase 1.
+Phase 1 established the schema foundation without implementing the advanced analytical engines.
 
----
+* * * * *
 
-# 39\. Schema Validation Rules
+38\. Phase 2 Document Processing Schema
+=======================================
 
-Future implementations must validate:
+Phase 2 introduced the normalized document-processing boundary between raw documents and analytical extraction.
 
-- identifier presence
+DocumentType
+------------
 
-- enum values
-
-- numeric ranges
-
-- required fields
-
-- nullable fields
-
-- relationship types
-
-- confidence range
-
-- score range
-
-- analysis-mode-specific constraints
-
-Invalid domain states should not be silently accepted.
-
----
-
-# 40\. Data Schema Invariants
-
-The following rules are permanent architectural invariants:
-
-1.  `AnalysisResult` is the canonical top-level result.
-
-2.  `analysis_id` uniquely identifies an analysis.
-
-3.  `schema_version` identifies the result schema version.
-
-4.  `analysis_mode` determines whether a job profile is expected.
-
-5.  Resume-only analysis does not generate JD-specific scoring.
-
-6.  Public scores use 0--100.
-
-7.  Internal similarity and confidence values use 0--1.
-
-8.  Confidence has one canonical structure.
-
-9.  Evidence is the preferred mechanism for supporting analytical conclusions.
-
-10. Skill normalization produces canonical skill identities.
-
-11. ScoreEngine owns official scoring.
-
-12. XAIEngine explains existing analytical outputs.
-
-13. RecommendationEngine owns recommendations.
-
-14. Domain structures remain independent of frontend implementation details.
-
-15. API schemas must remain compatible with frontend TypeScript contracts.
-
-16. Breaking schema changes require schema versioning.
-
----
-
-# 41\. Phase 1 Boundary
-
-Phase 1 establishes the data contract.
-
-It does not yet implement:
-
-- PDF parsing
-
-- DOCX parsing
-
-- transformer-based extraction
-
-- ESCO integration
-
-- embeddings
-
-- semantic matching algorithms
-
-- skill-gap algorithms
-
-- scoring algorithms
-
-- SHAP/LIME explainability
-
-- career inference algorithms
-
-- recommendation algorithms
-
-Those capabilities will be implemented in later phases while preserving the canonical schema defined in this document.
-
-Document Processing Schema --- Phase 2
-------------------------------------
-
-Phase 2 introduces the normalized document-processing data structures used as the boundary between raw documents and future analytical extraction.
-
-### DocumentType
-
-Supported document types:
+Supported types:
 
 ```
 pdf
@@ -1780,7 +1500,8 @@ docx
 
 ```
 
-### DocumentBlockType
+DocumentBlockType
+-----------------
 
 Supported normalized block types:
 
@@ -1792,9 +1513,10 @@ table_cell
 
 ```
 
-### SourceLocation
+SourceLocation
+--------------
 
-`SourceLocation` records the origin of a normalized document block.
+`SourceLocation` preserves the origin of a normalized block.
 
 Fields:
 
@@ -1809,11 +1531,12 @@ bbox
 
 ```
 
-Fields are optional because the available provenance depends on the document format and source structure.
+All provenance fields are optional because available information depends on the source format.
 
-### DocumentBlock
+DocumentBlock
+-------------
 
-A `DocumentBlock` represents one normalized piece of document content.
+`DocumentBlock` represents one normalized document block.
 
 Fields:
 
@@ -1827,39 +1550,251 @@ metadata
 
 ```
 
-### ParsedDocument
+ParsedDocument
+--------------
 
-`ParsedDocument` represents the complete normalized result of document processing.
+`ParsedDocument` is the frozen Phase 2 boundary object.
 
 Fields:
 
 ```
 document_id
 document_type
-blocks
+blocks[]
 metadata
 
 ```
 
-The object also provides reconstructed document text through its normalized blocks.
+Downstream Phase 3 components consume `ParsedDocument` directly.
 
-### Provenance Principle
+They must not reparse PDF or DOCX files.
 
-Document processing must preserve source information wherever practical.
+* * * * *
 
-Downstream analytical components should be able to determine where extracted evidence originated without requiring the original parser to be executed again.
+39\. Phase 2 → Phase 3 Data Boundary
+====================================
 
-### Phase 2 Data Boundary
+The frozen architecture is:
 
 ```
-Raw document
-    ↓
+Raw PDF / DOCX
+      ↓
+DocumentProcessor
+      ↓
 ParsedDocument
-    ↓
-Future Resume/JD extraction
-    ↓
-Future semantic analysis
+      ↓
+ResumeStructureInterpreter
+      ↓
+SkillExtractor
+      ↓
+SkillNormalizer
+      ↓
+ESCOMapper
+      ↓
+ResumeProfileBuilder
+      ↓
+ResumeProfile
 
 ```
 
-`ParsedDocument` is an infrastructure-level representation. It is not itself a resume profile, job profile, skill graph, match result, score, explanation, or recommendation.
+`ParsedDocument` is an infrastructure-level representation.
+
+It is not:
+
+-   a resume profile
+
+-   a job profile
+
+-   a skill graph
+
+-   a match result
+
+-   a score
+
+-   an explanation
+
+-   a recommendation
+
+* * * * *
+
+40\. Schema Validation Rules
+============================
+
+Implementations must validate:
+
+-   identifier presence
+
+-   enum values
+
+-   numeric ranges
+
+-   required fields
+
+-   nullable fields
+
+-   relationship types
+
+-   confidence ranges
+
+-   score ranges
+
+-   analysis-mode-specific constraints
+
+Invalid domain states should not be silently accepted.
+
+* * * * *
+
+41\. Data Schema Invariants
+===========================
+
+The following are architectural invariants:
+
+1.  `AnalysisResult` is the canonical top-level result.
+
+2.  `analysis_id` identifies an analysis.
+
+3.  `schema_version` identifies the result schema version.
+
+4.  `analysis_mode` determines whether a job profile is expected.
+
+5.  Resume-only analysis does not generate JD-specific scoring.
+
+6.  Public scores use `0--100`.
+
+7.  Internal similarity and confidence use `0--1`.
+
+8.  Confidence has one canonical structure.
+
+9.  Evidence is the preferred mechanism for supporting analytical conclusions.
+
+10. Skill normalization produces canonical skill identities.
+
+11. `ParsedDocument` is the frozen document-processing boundary.
+
+12. Phase 3 consumes normalized document blocks rather than reparsing source files.
+
+13. ESCO mapping is owned by `ESCOMapper`.
+
+14. `ResumeProfileBuilder` is responsible for canonical resume-profile construction.
+
+15. ScoreEngine owns official scoring.
+
+16. XAIEngine explains existing analytical outputs.
+
+17. RecommendationEngine owns recommendations.
+
+18. Domain structures remain independent of frontend implementation details.
+
+19. API schemas must remain compatible with frontend contracts.
+
+20. Breaking schema changes require schema versioning.
+
+21. Analytical components must not invent unsupported candidate or job facts.
+
+* * * * *
+
+42\. Current Implementation Status
+==================================
+
+### Implemented
+
+Phase 1:
+
+-   canonical domain schema foundation
+
+-   API schema foundation
+
+-   frontend analysis types
+
+Phase 2:
+
+-   `DocumentType`
+
+-   `DocumentBlockType`
+
+-   `SourceLocation`
+
+-   `DocumentBlock`
+
+-   `ParsedDocument`
+
+-   normalized document-processing boundary
+
+Phase 3:
+
+-   `ResumeSection`
+
+-   `StructuredResume`
+
+-   `SkillMention`
+
+-   `NormalizedSkill`
+
+-   `ESCOMapResult`
+
+-   evidence preservation
+
+-   confidence handling
+
+-   canonical `ResumeProfile` construction
+
+### Planned
+
+Future phases:
+
+-   JobProfile construction
+
+-   semantic skill matching
+
+-   skill-gap analysis
+
+-   scoring
+
+-   XAI
+
+-   career intelligence
+
+-   recommendations
+
+-   full ESCO dataset integration
+
+-   broader resume structure extraction
+
+The schema is designed so these capabilities can be added without breaking the Phase 2 document boundary or Phase 3 resume-profile contract.
+---
+
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
+
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
+
+The complete Phase 4 workflow is:
+
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
+
+Completed Phase 4 stages:
+
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
+
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
+
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
+
+Final verification:
+
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
+
+The complete Phase 4 implementation history is documented in:
+
+`docs/PHASE_4.md`
+
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

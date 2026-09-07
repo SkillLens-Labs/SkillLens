@@ -4,53 +4,49 @@ SkillLens --- Codebase Map
 1\. Purpose
 -----------
 
-This document provides a structured map of the SkillLens codebase.
+This document provides a practical map of the SkillLens repository.
 
-It explains:
+It identifies:
 
--   where major application responsibilities are located
+-   where major responsibilities are implemented
 
--   how backend modules are organized
+-   where domain and API contracts are defined
 
--   how frontend modules are organized
+-   where document processing is located
 
--   where tests are located
+-   where Phase 3 resume intelligence is implemented
 
--   where configuration is stored
+-   where frontend code is located
 
--   which components are currently implemented
+-   where tests and fixtures are stored
 
--   which components are reserved for later phases
+-   which components are implemented
 
-The purpose of this document is to make the repository understandable to both human developers and AI coding assistants.
+-   which components are reserved for future phases
+
+The purpose is to make the repository understandable to both human developers and AI coding assistants.
 
 * * * * *
 
 2\. Repository Root
 ===================
 
-The project root is:
-
-`SkillLens/`
-
-The repository is divided into two primary application layers:
-
 ```
 SkillLens/
 ├── backend/
 ├── frontend/
-├── documentation files
+├── docs/
 ├── .gitignore
 └── skilllens/
 
 ```
 
-The `skilllens/` directory is the local Python virtual environment and is excluded from Git.
+`skilllens/` is the local Python virtual environment and is excluded from Git.
 
 * * * * *
 
-3\. Backend Overview
-====================
+3\. Backend
+===========
 
 Backend location:
 
@@ -66,7 +62,7 @@ Technology:
 
 -   Uvicorn
 
-The backend follows a layered modular-monolith architecture.
+The backend follows a modular-monolith architecture.
 
 ```
 backend/
@@ -80,8 +76,6 @@ backend/
 
 4\. Backend Application Structure
 =================================
-
-The backend application is organized into:
 
 ```
 backend/app/
@@ -97,49 +91,56 @@ backend/app/
 
 ```
 
-Each directory has a specific responsibility.
+Responsibilities:
+
+| Directory | Responsibility |
+| --- | --- |
+| `api/` | HTTP/API layer |
+| `core/` | Configuration, logging, exceptions |
+| `domain/` | Canonical domain models |
+| `schemas/` | API transport schemas |
+| `orchestration/` | Analysis workflow coordination |
+| `analysis/` | Analytical engines |
+| `infrastructure/` | Parsers, ML, persistence integrations |
+| `utils/` | Small reusable utilities |
 
 * * * * *
 
-5\. backend/app/main.py
-=======================
+5\. Application Entry Point
+===========================
 
 File:
 
 `backend/app/main.py`
 
-Responsibility:
+Responsibilities:
 
 -   create the FastAPI application
 
--   configure application logging
+-   configure logging
 
--   register API routers
-
--   register application-level exception handling
+-   register routers
 
 -   configure application metadata
 
-Current routes registered:
+-   register application-level exception handling
 
--   health router
+Current API routers include:
 
--   analysis router
+-   health
 
-The file should remain focused on application composition.
+-   analyses
 
-It should not contain analytical algorithms.
+`main.py` must remain an application-composition layer and must not contain analytical algorithms.
 
 * * * * *
 
-6\. backend/app/api/
-====================
+6\. API Layer
+=============
 
-Purpose:
+Location:
 
-Contains the HTTP/API layer.
-
-Structure:
+`backend/app/api/`
 
 ```
 backend/app/api/
@@ -154,43 +155,36 @@ backend/app/api/
 
 The API layer translates HTTP requests into application operations.
 
-It must not contain domain algorithms.
+It does not own analytical logic.
 
 * * * * *
 
-7\. backend/app/api/routes/health.py
-====================================
+7\. API Routes
+==============
 
-Purpose:
+`health.py`
+-----------
 
-Provides the application health endpoint.
+File:
+
+`backend/app/api/routes/health.py`
 
 Endpoint:
 
 `GET /api/v1/health`
 
-Current behavior:
-
-Returns:
-
--   application status
-
--   application name
-
--   application version
-
-This endpoint is intentionally simple and independent of the analytical pipeline.
+Provides basic application health information.
 
 * * * * *
 
-8\. backend/app/api/routes/analyses.py
-======================================
+`analyses.py`
+-------------
 
-Purpose:
+File:
 
-Defines the analysis-related HTTP endpoints.
+`backend/app/api/routes/analyses.py`
 
-Current endpoints:
+Analysis endpoints:
 
 ```
 POST   /api/v1/analyses/resume
@@ -200,47 +194,20 @@ DELETE /api/v1/analyses/{analysis_id}
 
 ```
 
-Current Phase 1 behavior:
+The routes define the public analysis API contract.
 
-The routes exist and validate their basic request structure, but real analysis processing is not yet implemented.
+The analysis endpoints currently use controlled application behavior rather than exposing a completed end-to-end public analysis workflow.
 
-The routes currently return the controlled `ANALYSIS_NOT_IMPLEMENTED` application error.
-
-Future implementation will connect these routes to the `AnalysisOrchestrator`.
+Future API integration will connect these routes to the central analysis orchestration layer.
 
 * * * * *
 
-9\. backend/app/api/dependencies.py
-===================================
+8\. Core Layer
+==============
 
-Purpose:
+Location:
 
-Reserved for FastAPI dependency definitions.
-
-Potential future responsibilities include:
-
--   dependency injection
-
--   orchestrator construction
-
--   repository injection
-
--   authentication dependencies
-
--   request-level services
-
-No analytical logic should be placed here.
-
-* * * * *
-
-10\. backend/app/core/
-======================
-
-Purpose:
-
-Contains application-wide infrastructure and cross-cutting concerns.
-
-Structure:
+`backend/app/core/`
 
 ```
 backend/app/core/
@@ -251,16 +218,11 @@ backend/app/core/
 
 ```
 
-* * * * *
-
-11\. backend/app/core/config.py
-===============================
-
-Purpose:
+### `config.py`
 
 Central application configuration.
 
-Current configuration includes:
+Includes settings such as:
 
 -   application name
 
@@ -268,70 +230,30 @@ Current configuration includes:
 
 -   environment
 
--   API version prefix
+-   API prefix
 
--   debug flag
+-   debug configuration
 
--   maximum upload size
+-   upload limits
 
-Configuration is managed through Pydantic Settings.
+### `exceptions.py`
 
-Environment variables may override configuration values.
-
-The configuration module should remain the canonical source for application settings.
-
-* * * * *
-
-12\. backend/app/core/exceptions.py
-===================================
-
-Purpose:
-
-Defines internal application-level exceptions.
-
-Primary class:
+Defines application-level exceptions, including:
 
 `ApplicationError`
 
-The exception contains:
+### `logging.py`
 
--   code
-
--   message
-
--   details
-
--   field
-
-These errors are converted into the stable API error contract by the application exception handler.
+Provides centralized application logging.
 
 * * * * *
 
-13\. backend/app/core/logging.py
-================================
+9\. Domain Layer
+================
 
-Purpose:
+Location:
 
-Provides centralized logging configuration.
-
-Current responsibilities:
-
--   configure application-wide logging
-
--   provide module-specific loggers
-
-Future analytical modules should use this logging layer instead of creating independent logging configurations.
-
-* * * * *
-
-14\. backend/app/domain/
-========================
-
-Purpose:
-
-Contains canonical domain models.
-
-Structure:
+`backend/app/domain/`
 
 ```
 backend/app/domain/
@@ -350,9 +272,9 @@ backend/app/domain/
 
 ```
 
-The domain layer represents the core concepts of SkillLens.
+The domain layer contains canonical analytical data structures.
 
-It should remain independent of:
+It must remain independent of:
 
 -   FastAPI
 
@@ -360,325 +282,37 @@ It should remain independent of:
 
 -   HTTP transport
 
+-   UI implementation
+
 -   database-specific implementation
 
--   specific UI components
+Important domain ownership:
+
+| File | Main responsibility |
+| --- | --- |
+| `analysis.py` | `AnalysisResult` |
+| `resume.py` | Resume structures |
+| `job.py` | Job structures |
+| `skill.py` | Skill structures |
+| `evidence.py` | Evidence structures |
+| `confidence.py` | Confidence structures |
+| `matching.py` | Match structures |
+| `gaps.py` | Gap structures |
+| `scoring.py` | Scoring structures |
+| `xai.py` | Explainability structures |
+| `career.py` | Career structures |
+| `recommendations.py` | Recommendation structures |
+
+Domain models define data contracts; analytical algorithms belong elsewhere.
 
 * * * * *
 
-15\. backend/app/domain/analysis.py
-===================================
+10\. API Schemas
+================
 
-Purpose:
+Location:
 
-Defines the canonical `AnalysisResult` structure.
-
-This is the primary top-level domain contract.
-
-It connects:
-
--   input
-
--   resume profile
-
--   job profile
-
--   skill analysis
-
--   scoring
-
--   XAI
-
--   career intelligence
-
--   recommendations
-
--   metadata
-
-`AnalysisResult` is the single source of truth for completed analysis.
-
-* * * * *
-
-16\. backend/app/domain/resume.py
-=================================
-
-Purpose:
-
-Defines resume-related domain structures.
-
-Includes concepts such as:
-
--   ResumeProfile
-
--   education
-
--   experience
-
--   projects
-
--   certifications
-
--   contact information
-
-It represents the structured candidate profile produced from a resume.
-
-* * * * *
-
-17\. backend/app/domain/job.py
-==============================
-
-Purpose:
-
-Defines job-description domain structures.
-
-Includes:
-
--   JobProfile
-
--   required skills
-
--   preferred skills
-
--   technical skills
-
--   soft skills
-
--   domain skills
-
--   experience requirements
-
--   education requirements
-
--   seniority
-
-* * * * *
-
-18\. backend/app/domain/skill.py
-================================
-
-Purpose:
-
-Defines the canonical `Skill` representation.
-
-Skill normalization is important because different textual representations may refer to the same underlying skill.
-
-Example:
-
-```
-Python
-Python Programming
-Python 3
-
-```
-
-may ultimately map to a canonical skill representation.
-
-* * * * *
-
-19\. backend/app/domain/evidence.py
-===================================
-
-Purpose:
-
-Defines evidence structures connecting analytical results to source documents.
-
-Evidence may originate from:
-
--   resume
-
--   job description
-
--   generated analysis
-
-Evidence supports:
-
--   skill extraction
-
--   matching
-
--   gap analysis
-
--   XAI
-
--   recommendations
-
-* * * * *
-
-20\. backend/app/domain/confidence.py
-=====================================
-
-Purpose:
-
-Defines the canonical confidence structure.
-
-Confidence uses:
-
-`0--1`
-
-and includes:
-
--   score
-
--   level
-
--   components
-
--   rationale
-
-This prevents different modules from using incompatible confidence representations.
-
-* * * * *
-
-21\. backend/app/domain/matching.py
-===================================
-
-Purpose:
-
-Defines skill matching structures.
-
-Includes concepts such as:
-
--   SkillMatch
-
--   match relationship
-
--   similarity
-
--   confidence
-
--   evidence
-
--   rationale
-
-The actual matching algorithm belongs to `SemanticMatcher`, not the domain model.
-
-* * * * *
-
-22\. backend/app/domain/gaps.py
-===============================
-
-Purpose:
-
-Defines skill-gap structures.
-
-Represents concepts such as:
-
--   missing skills
-
--   partial matches
-
--   insufficient proficiency
-
--   severity
-
--   importance
-
--   supporting evidence
-
-The actual gap-detection algorithm belongs to `GapAnalyzer`.
-
-* * * * *
-
-23\. backend/app/domain/scoring.py
-==================================
-
-Purpose:
-
-Defines scoring structures.
-
-Includes:
-
--   ScoringResult
-
--   DimensionScore
-
--   ScoreAdjustment
-
-The domain module defines the data contract.
-
-`ScoreEngine` owns the actual scoring algorithm.
-
-* * * * *
-
-24\. backend/app/domain/xai.py
-==============================
-
-Purpose:
-
-Defines explainability structures.
-
-Includes:
-
--   XAIResult
-
--   SkillExplanation
-
--   EvidenceMapEntry
-
-`XAIEngine` owns explanation generation.
-
-The domain module itself does not perform explainability calculations.
-
-* * * * *
-
-25\. backend/app/domain/career.py
-=================================
-
-Purpose:
-
-Defines career intelligence structures.
-
-Includes concepts such as:
-
--   CareerIntelligence
-
--   RoleFit
-
--   SkillPriority
-
-The actual career inference logic belongs to `CareerIntelligenceEngine`.
-
-* * * * *
-
-26\. backend/app/domain/recommendations.py
-==========================================
-
-Purpose:
-
-Defines recommendation structures.
-
-Includes:
-
--   Recommendation
-
--   recommendation type
-
--   priority
-
--   rationale
-
--   expected impact
-
--   effort
-
--   evidence
-
--   related gaps
-
--   confidence
-
-`RecommendationEngine` is the sole owner of recommendation generation.
-
-* * * * *
-
-27\. backend/app/schemas/
-=========================
-
-Purpose:
-
-Contains API transport schemas.
-
-Structure:
+`backend/app/schemas/`
 
 ```
 backend/app/schemas/
@@ -689,87 +323,42 @@ backend/app/schemas/
 
 ```
 
-These schemas define what the API accepts and returns.
+### `requests.py`
 
-They should not contain analytical algorithms.
+Defines API request contracts such as:
 
-* * * * *
+-   `AnalysisOptions`
 
-28\. backend/app/schemas/requests.py
-====================================
+-   `ClientMetadata`
 
-Purpose:
+-   `ResumeAnalysisRequest`
 
-Defines request contracts.
+-   `ResumeJDAnalysisRequest`
 
-Current structures include:
+### `responses.py`
 
--   AnalysisOptions
+Defines API response contracts such as:
 
--   ClientMetadata
+-   `AnalysisResponse`
 
--   ResumeAnalysisRequest
+-   `AnalysisAcceptedResponse`
 
--   ResumeJDAnalysisRequest
+-   `DeleteAnalysisResponse`
 
-These schemas validate request-level configuration.
+### `errors.py`
 
-* * * * *
+Defines the external API error representation.
 
-29\. backend/app/schemas/responses.py
-=====================================
-
-Purpose:
-
-Defines API response structures.
-
-Current structures include:
-
--   AnalysisResponse
-
--   AnalysisAcceptedResponse
-
--   DeleteAnalysisResponse
-
-The response layer exposes the canonical domain result through the API.
+API schemas are transport contracts and must not contain analytical algorithms.
 
 * * * * *
 
-30\. backend/app/schemas/errors.py
-==================================
+11\. Orchestration Layer
+========================
 
-Purpose:
+Location:
 
-Defines the stable API error response.
-
-Structure:
-
-```
-ErrorResponse
-├── code
-├── message
-├── details
-├── field
-└── request_id
-
-```
-
-This is separate from `core/exceptions.py`.
-
-`core/exceptions.py` defines internal exceptions.
-
-`schemas/errors.py` defines the external API error representation.
-
-* * * * *
-
-31\. backend/app/orchestration/
-===============================
-
-Purpose:
-
-Contains the application-level analysis orchestrator.
-
-Structure:
+`backend/app/orchestration/`
 
 ```
 backend/app/orchestration/
@@ -778,319 +367,279 @@ backend/app/orchestration/
 
 ```
 
-* * * * *
+The orchestrator is the central workflow coordinator.
 
-32\. backend/app/orchestration/analysis_orchestrator.py
-=======================================================
+It is responsible for controlling analysis execution order.
 
-Purpose:
-
-Defines the contract for the central analysis orchestrator.
-
-The orchestrator exposes:
+Conceptually:
 
 ```
-analyze_resume()
-analyze_resume_jd()
-get_analysis()
-delete_analysis()
+API
+ ↓
+AnalysisOrchestrator
+ ↓
+Analysis Components
+ ↓
+Canonical Domain Result
 
 ```
 
-The orchestrator is the central coordination point for the analytical workflow.
-
-Individual engines must not call one another directly.
-
-The orchestrator controls execution order.
+There must be one canonical analysis orchestrator.
 
 * * * * *
 
-33\. backend/app/analysis/
-==========================
+12\. Analysis Layer
+===================
 
-Purpose:
+Location:
 
-Contains the analytical engines.
+`backend/app/analysis/`
 
-Planned structure:
+Current Phase 3 structure:
 
 ```
 backend/app/analysis/
-├── document_processor.py
+├── __init__.py
+├── esco_mapper.py
+├── resume_profile_builder.py
+├── resume_structure.py
 ├── skill_extractor.py
-├── skill_normalizer.py
-├── semantic_matcher.py
-├── gap_analyzer.py
-├── score_engine.py
-├── xai_engine.py
-├── career_engine.py
-└── recommendation_engine.py
+└── skill_normalizer.py
 
 ```
 
-At the current Phase 1 state, these analytical engine implementations have not yet been built.
+Phase 3 implemented the resume-intelligence pipeline in this directory.
 
-Only the package structure is established.
+Future analytical components will be added here without duplicating existing responsibilities.
 
 * * * * *
 
-34\. DocumentProcessor
-======================
+13\. Phase 3 Resume Structure
+=============================
 
-Planned file:
+File:
 
-`backend/app/analysis/document_processor.py`
+`backend/app/analysis/resume_structure.py`
 
 Responsibility:
 
--   validate documents
+-   interpret resume section structure
 
--   parse supported file formats
+-   classify recognized headings
 
--   extract text
+-   preserve block order
 
--   identify document structure
+-   preserve source document identity
 
--   preserve source information
+-   produce structured resume sections
 
-Initial planned document formats:
+Primary structures:
 
--   PDF
+-   `ResumeSectionType`
 
--   DOCX
+-   `ResumeSection`
 
-DocumentProcessor should not perform skill matching or scoring.
+-   `StructuredResume`
+
+-   `ResumeStructureInterpreter`
+
+This component consumes `ParsedDocument`.
+
+It does not parse PDF/DOCX files directly.
 
 * * * * *
 
-35\. SkillExtractor
-===================
+14\. Phase 3 Skill Extraction
+=============================
 
-Planned file:
+File:
 
 `backend/app/analysis/skill_extractor.py`
 
 Responsibility:
 
--   identify candidate skills from source text
+-   identify skill mentions
 
--   identify job-required skills
+-   distinguish explicit and contextual evidence
 
--   associate extracted skills with evidence
+-   preserve source block provenance
 
--   produce extraction confidence
+-   preserve offsets
 
-Potential technologies:
+-   attach extraction confidence
 
--   NLP
+Primary structures:
 
--   transformer models
+-   `SkillEvidenceType`
 
--   rule-based extraction
+-   `SkillMention`
 
--   taxonomy-assisted extraction
+-   `SkillExtractionResult`
+
+-   `SkillExtractor`
+
+Current extraction is deterministic and vocabulary-assisted.
+
+It does not perform normalization, ESCO mapping, matching, or scoring.
 
 * * * * *
 
-36\. SkillNormalizer
-====================
+15\. Phase 3 Skill Normalization
+================================
 
-Planned file:
+File:
 
 `backend/app/analysis/skill_normalizer.py`
 
 Responsibility:
 
--   map extracted skill phrases to canonical skill identities
+-   normalize skill text
 
--   resolve aliases
+-   resolve known aliases
 
--   reduce duplicate representations
+-   produce canonical skill names
 
--   integrate taxonomy information
+-   preserve raw extracted text
 
-Planned taxonomy:
+-   preserve extraction confidence
 
-ESCO or another validated skills taxonomy.
+Primary structure:
 
-* * * * *
+-   `NormalizedSkill`
 
-37\. SemanticMatcher
-====================
+Examples:
 
-Planned file:
+```
+Python Programming → python
+Python 3           → python
+ReactJS            → react
+Postgres           → postgresql
+ML                 → machine learning
 
-`backend/app/analysis/semantic_matcher.py`
+```
 
-Responsibility:
-
--   compare normalized resume skills with job skills
-
--   calculate semantic similarity
-
--   classify relationships
-
--   produce match confidence
-
--   preserve supporting evidence
-
-Planned initial embedding candidate:
-
-`all-MiniLM-L6-v2`
-
-The exact model will be validated during implementation and evaluation.
+Normalization is separate from extraction and semantic matching.
 
 * * * * *
 
-38\. GapAnalyzer
-================
-
-Planned file:
-
-`backend/app/analysis/gap_analyzer.py`
-
-Responsibility:
-
--   identify missing skills
-
--   identify partial matches
-
--   identify insufficient proficiency
-
--   determine gap severity
-
--   connect gaps to job requirements
-
--   preserve evidence
-
-GapAnalyzer does not own official scoring.
-
-* * * * *
-
-39\. ScoreEngine
-================
-
-Planned file:
-
-`backend/app/analysis/score_engine.py`
-
-Responsibility:
-
--   calculate official compatibility scores
-
--   calculate scoring dimensions
-
--   apply explicit weights
-
--   apply bonuses and penalties
-
--   calculate score confidence
-
-ScoreEngine is the sole owner of official scoring.
-
-Public score:
-
-`0--100`
-
-Internal calculations may use:
-
-`0--1`
-
-* * * * *
-
-40\. XAIEngine
-==============
-
-Planned file:
-
-`backend/app/analysis/xai_engine.py`
-
-Responsibility:
-
--   explain analytical outputs
-
--   explain score contributions
-
--   explain strengths and weaknesses
-
--   explain skill matches
-
--   explain skill gaps
-
--   map conclusions to evidence
-
-Primary planned explainability approach:
-
-SHAP
-
-Possible alternative:
-
-LIME
-
-XAIEngine must not independently redefine the official score.
-
-* * * * *
-
-41\. CareerIntelligenceEngine
-=============================
-
-Planned file:
-
-`backend/app/analysis/career_engine.py`
-
-Responsibility:
-
--   infer candidate experience level
-
--   identify professional domains
-
--   identify career signals
-
--   identify strengths
-
--   identify potential roles
-
--   estimate role fit
-
--   identify career transition opportunities
-
--   prioritize skills for development
-
-* * * * *
-
-42\. RecommendationEngine
+16\. Phase 3 ESCO Mapping
 =========================
 
-Planned file:
+File:
 
-`backend/app/analysis/recommendation_engine.py`
+`backend/app/analysis/esco_mapper.py`
 
 Responsibility:
 
--   generate actionable recommendations
+-   map normalized skills toward ESCO concepts
 
--   prioritize recommendations
+-   classify mapping status
 
--   connect recommendations to skill gaps
+-   preserve candidate confidence
 
--   estimate impact and effort
+-   preserve mapping metadata
 
--   preserve evidence
+Primary structures:
 
--   provide recommendation confidence
+-   `ESCOMapStatus`
 
-This engine is the sole owner of recommendations.
+-   `ESCOCandidate`
+
+-   `ESCOMapResult`
+
+-   `ESCOMapper`
+
+Current supported mapping states:
+
+-   `MAPPED`
+
+-   `AMBIGUOUS`
+
+-   `UNMAPPED`
+
+Current implementation uses a deterministic adapter vocabulary.
+
+ESCO version metadata:
+
+`1.2.1`
+
+The mapper must never fabricate ESCO identifiers.
 
 * * * * *
 
-43\. backend/app/infrastructure/
-================================
+17\. Phase 3 Resume Profile Builder
+===================================
 
-Purpose:
+File:
 
-Contains integrations with external technical systems.
+`backend/app/analysis/resume_profile_builder.py`
 
-Structure:
+Responsibility:
+
+-   construct the canonical `ResumeProfile`
+
+-   deduplicate normalized skills
+
+-   merge evidence
+
+-   preserve provenance
+
+-   aggregate confidence
+
+-   assign skill categories
+
+-   attach processing metadata
+
+Primary structure:
+
+-   `ResumeProfileBuilder`
+
+The builder is the final Phase 3 transformation from intermediate resume-analysis data into the canonical resume profile.
+
+It must not invent unsupported candidate information.
+
+* * * * *
+
+18\. Phase 3 Resume Intelligence Flow
+=====================================
+
+The current implemented Phase 3 flow is:
+
+```
+ParsedDocument
+      ↓
+ResumeStructureInterpreter
+      ↓
+StructuredResume
+      ↓
+SkillExtractor
+      ↓
+SkillMention[]
+      ↓
+SkillNormalizer
+      ↓
+NormalizedSkill[]
+      ↓
+ESCOMapper
+      ↓
+ESCOMapResult[]
+      ↓
+ResumeProfileBuilder
+      ↓
+ResumeProfile
+
+```
+
+Evidence and confidence are preserved throughout the pipeline.
+
+* * * * *
+
+19\. Infrastructure Layer
+=========================
+
+Location:
+
+`backend/app/infrastructure/`
 
 ```
 backend/app/infrastructure/
@@ -1101,58 +650,105 @@ backend/app/infrastructure/
 
 ```
 
-Infrastructure must implement technical details without becoming the owner of domain decisions.
+Infrastructure contains technical integrations.
+
+It should not become a second source of domain logic.
 
 * * * * *
 
-44\. backend/app/infrastructure/parsers/
-========================================
+20\. Document Processing Infrastructure
+=======================================
 
-Purpose:
+Location:
 
-Reserved for document parser implementations.
+`backend/app/infrastructure/parsers/`
 
-Potential parser responsibilities:
+Current implementation:
 
--   PDF text extraction
+```
+backend/app/infrastructure/parsers/
+├── __init__.py
+├── base.py
+├── models.py
+├── validation.py
+├── pdf_parser.py
+├── docx_parser.py
+└── document_processor.py
 
--   DOCX text extraction
+```
 
--   document metadata extraction
+### Responsibilities
 
--   section detection
-
-These parsers are infrastructure implementations used by DocumentProcessor.
+| File | Responsibility |
+| --- | --- |
+| `base.py` | Parser interface |
+| `models.py` | `ParsedDocument`, `DocumentBlock`, provenance models |
+| `validation.py` | Document validation |
+| `pdf_parser.py` | PDF extraction |
+| `docx_parser.py` | DOCX extraction |
+| `document_processor.py` | Validation, parser selection, normalized processing |
 
 * * * * *
 
-45\. backend/app/infrastructure/ml/
-===================================
+21\. Document Processing Boundary
+=================================
 
-Purpose:
+Phase 2 established the frozen document-processing boundary:
 
-Reserved for machine-learning infrastructure.
+```
+Raw PDF / DOCX
+      ↓
+DocumentProcessor
+      ↓
+ParsedDocument
+      ↓
+Phase 3 Analysis
 
-Potential responsibilities:
+```
 
--   loading embedding models
+Phase 3 consumes `ParsedDocument`.
 
--   model configuration
+Phase 3 must not:
+
+-   reparse PDF files
+
+-   reparse DOCX files
+
+-   duplicate parser logic
+
+-   bypass `DocumentProcessor`
+
+* * * * *
+
+22\. Infrastructure ML
+======================
+
+Location:
+
+`backend/app/infrastructure/ml/`
+
+Reserved for technical ML infrastructure such as:
+
+-   transformer model loading
+
+-   embedding models
 
 -   inference utilities
 
 -   model caching
 
--   transformer integration
+-   model configuration
 
-The infrastructure layer should provide model capabilities to analytical engines without taking ownership of business logic.
+ML infrastructure provides technical capabilities to analysis components; it does not own analytical business rules.
 
 * * * * *
 
-46\. backend/app/infrastructure/repositories/
-=============================================
+23\. Infrastructure Repositories
+================================
 
-Purpose:
+Location:
+
+`backend/app/infrastructure/repositories/`
 
 Reserved for persistence implementations.
 
@@ -1166,44 +762,176 @@ Potential responsibilities:
 
 -   storing documents
 
--   managing analysis metadata
+-   storing metadata
 
-Repositories should abstract persistence from the analytical domain.
+Repositories should abstract persistence from the domain layer.
 
 * * * * *
 
-47\. backend/app/infrastructure/models/
-=======================================
+24\. Infrastructure Models
+==========================
 
-Purpose:
+Location:
+
+`backend/app/infrastructure/models/`
 
 Reserved for persistence-specific models.
 
-These models should represent database/storage concerns and should not replace the canonical domain models.
+These models must not replace canonical domain models.
 
 * * * * *
 
-48\. backend/app/utils/
-=======================
+25\. Future Analysis Components
+===============================
 
-Purpose:
+The following responsibilities are planned but are not Phase 3 implementations:
+
+| Component | Responsibility |
+| --- | --- |
+| `SemanticMatcher` | Resume/JD semantic matching |
+| `GapAnalyzer` | Skill-gap detection |
+| `ScoreEngine` | Official compatibility scoring |
+| `XAIEngine` | Explainability |
+| `CareerIntelligenceEngine` | Career analysis |
+| `RecommendationEngine` | Recommendations |
+
+These components must consume existing contracts rather than creating duplicate representations.
+
+* * * * *
+
+26\. Future Semantic Matcher
+============================
+
+Planned responsibility:
+
+-   compare normalized resume and job skills
+
+-   calculate semantic similarity
+
+-   classify relationships
+
+-   preserve evidence and confidence
+
+Semantic matching is not implemented in Phase 3.
+
+* * * * *
+
+27\. Future Gap Analyzer
+========================
+
+Planned responsibility:
+
+-   identify missing skills
+
+-   identify partial matches
+
+-   evaluate proficiency gaps
+
+-   determine gap severity
+
+-   connect gaps to job requirements
+
+Gap analysis is not implemented in Phase 3.
+
+* * * * *
+
+28\. Future Score Engine
+========================
+
+Planned responsibility:
+
+-   calculate official compatibility scores
+
+-   calculate scoring dimensions
+
+-   apply weights
+
+-   apply explicit bonuses and penalties
+
+-   produce scoring confidence
+
+`ScoreEngine` will be the sole owner of official scoring.
+
+Scoring is not implemented in Phase 3.
+
+* * * * *
+
+29\. Future XAI Engine
+======================
+
+Planned responsibility:
+
+-   explain analytical results
+
+-   explain score contributions
+
+-   explain strengths and weaknesses
+
+-   explain matches and gaps
+
+-   connect conclusions to evidence
+
+`XAIEngine` explains existing analytical outputs and does not own official scoring.
+
+* * * * *
+
+30\. Future Career Intelligence
+===============================
+
+Planned responsibility:
+
+-   infer experience level
+
+-   identify professional domains
+
+-   identify career signals
+
+-   identify strengths
+
+-   identify potential roles
+
+-   prioritize skills
+
+Career intelligence is not implemented in Phase 3.
+
+* * * * *
+
+31\. Future Recommendation Engine
+=================================
+
+Planned responsibility:
+
+-   generate actionable recommendations
+
+-   prioritize recommendations
+
+-   connect recommendations to evidence and gaps
+
+-   estimate expected impact and effort
+
+`RecommendationEngine` will be the sole owner of recommendations.
+
+* * * * *
+
+32\. Utilities
+==============
+
+Location:
+
+`backend/app/utils/`
 
 Contains small reusable utilities that do not belong to a specific domain responsibility.
 
-Utilities should remain lightweight.
-
-Business logic should not be moved into generic utility modules simply to avoid creating a proper domain component.
+Business logic must remain in the appropriate domain or analysis component rather than being hidden inside generic utilities.
 
 * * * * *
 
-49\. Backend Tests
+33\. Backend Tests
 ==================
 
-Test location:
+Location:
 
 `backend/tests/`
-
-Structure:
 
 ```
 backend/tests/
@@ -1217,93 +945,84 @@ backend/tests/
 
 * * * * *
 
-50\. backend/tests/unit/
-========================
+34\. Unit Tests
+===============
 
-Purpose:
+Location:
 
-Unit tests for isolated components.
+`backend/tests/unit/`
 
-Current unit coverage includes domain contract validation.
+Current Phase 3 unit coverage includes:
 
-Future unit tests should cover:
-
--   document processing
+-   resume structure interpretation
 
 -   skill extraction
 
--   normalization
+-   skill normalization
 
--   semantic matching
+-   ESCO mapping
 
--   gap analysis
+-   resume profile construction
 
--   scoring
-
--   XAI
-
--   career intelligence
-
--   recommendations
+Unit tests should test components independently and deterministically.
 
 * * * * *
 
-51\. backend/tests/integration/
-===============================
+35\. Integration Tests
+======================
 
-Purpose:
+Location:
 
-Tests interactions between multiple backend components.
+`backend/tests/integration/`
 
-Examples:
+Phase 3 integration coverage includes the complete resume-analysis chain:
 
--   orchestrator + engines
+```
+ParsedDocument
+      ↓
+Structure
+      ↓
+Extraction
+      ↓
+Normalization
+      ↓
+ESCO Mapping
+      ↓
+ResumeProfile
 
--   document processor + parser
+```
 
--   engine + repository
-
--   complete analysis pipeline
-
-* * * * *
-
-52\. backend/tests/api/
-=======================
-
-Purpose:
-
-Tests HTTP/API behavior.
-
-Current API tests cover the Phase 1 analysis endpoints and health behavior.
-
-Future tests should cover:
-
--   valid uploads
-
--   invalid files
-
--   file-size limits
-
--   completed analysis retrieval
-
--   deletion
-
--   API error contracts
-
--   mode-specific behavior
+Integration tests verify that the individual Phase 3 components work together correctly.
 
 * * * * *
 
-53\. backend/tests/evaluation/
-==============================
+36\. Test Fixtures
+==================
 
-Purpose:
+Location:
+
+`backend/tests/fixtures/`
+
+Current Phase 3 real-document fixtures include:
+
+-   `phase3_sample_resume.docx`
+
+-   `phase3_sample_resume.pdf`
+
+Fixtures are used for deterministic real-file verification.
+
+* * * * *
+
+37\. Evaluation Tests
+=====================
+
+Location:
+
+`backend/tests/evaluation/`
 
 Reserved for analytical evaluation.
 
-This is important because SkillLens is an academic project involving NLP, semantic matching, and explainability.
-
-Evaluation should eventually measure:
+Future evaluation should measure areas such as:
 
 -   skill extraction quality
 
@@ -1311,7 +1030,7 @@ Evaluation should eventually measure:
 
 -   semantic matching quality
 
--   gap detection quality
+-   gap detection
 
 -   scoring consistency
 
@@ -1319,68 +1038,14 @@ Evaluation should eventually measure:
 
 -   recommendation usefulness
 
-Evaluation datasets should be kept separate from normal unit-test fixtures.
+Evaluation datasets should remain separate from normal unit-test fixtures.
 
 * * * * *
 
-54\. backend/tests/fixtures/
-============================
+38\. Frontend
+=============
 
-Purpose:
-
-Contains controlled test inputs.
-
-Potential fixtures:
-
--   sample resumes
-
--   sample job descriptions
-
--   expected skill sets
-
--   expected matches
-
--   expected gaps
-
--   expected scoring results
-
-Fixtures should be deterministic and reproducible.
-
-* * * * *
-
-55\. backend/requirements.txt
-=============================
-
-Purpose:
-
-Defines Python dependencies.
-
-Current Phase 1 dependencies include:
-
--   FastAPI
-
--   Uvicorn
-
--   Pydantic
-
--   Pydantic Settings
-
--   python-multipart
-
--   pytest
-
--   pytest-asyncio
-
--   httpx
-
-Advanced NLP/ML dependencies are intentionally deferred until the relevant implementation phase.
-
-* * * * *
-
-56\. Frontend Overview
-======================
-
-Frontend location:
+Location:
 
 `frontend/`
 
@@ -1392,7 +1057,7 @@ Technology:
 
 -   Vite
 
-Current structure:
+Primary structure:
 
 ```
 frontend/
@@ -1410,12 +1075,14 @@ frontend/
 
 * * * * *
 
-57\. frontend/src/
-==================
+39\. Frontend Source
+====================
 
-Primary frontend source directory.
+Location:
 
-Structure:
+`frontend/src/`
+
+Conceptual organization:
 
 ```
 frontend/src/
@@ -1432,192 +1099,77 @@ frontend/src/
 
 ```
 
-Some directories are currently reserved for later implementation.
+Frontend responsibilities are limited to presentation, interaction, state, and API communication.
+
+Backend analytical logic must not be duplicated in the frontend.
 
 * * * * *
 
-58\. frontend/src/app/
+40\. Frontend Application
+=========================
+
+Location:
+
+`frontend/src/app/`
+
+Contains application-level React setup.
+
+`frontend/src/main.tsx` is the frontend entry point.
+
+* * * * *
+
+41\. Frontend Pages and Components
+==================================
+
+`frontend/src/pages/`
+
+Contains route-level page components.
+
+`frontend/src/components/`
+
+Contains reusable UI components.
+
+Pages should compose components and feature modules rather than implement analytical algorithms.
+
+* * * * *
+
+42\. Frontend Features
 ======================
 
-Purpose:
+Location:
 
-Application-level React setup.
+`frontend/src/features/`
 
-Current file:
+Organizes UI by business capability.
 
-`frontend/src/app/App.tsx`
-
-Responsibility:
-
--   application root component
-
--   initial application shell
-
-Current Phase 1 implementation is intentionally minimal.
-
-* * * * *
-
-59\. frontend/src/main.tsx
-==========================
-
-Purpose:
-
-React application entry point.
-
-Responsibilities:
-
--   locate root DOM element
-
--   render the React application
-
--   enable React Strict Mode
-
-It renders:
-
-`App`
-
-* * * * *
-
-60\. frontend/src/pages/
-========================
-
-Purpose:
-
-Reserved for route-level page components.
-
-Planned pages may include:
-
--   dashboard
-
--   upload
+Planned feature areas include:
 
 -   analysis
-
--   visualizations
 
 -   skills
 
 -   matching
 
--   career intelligence
+-   career
 
 -   XAI
 
 -   recommendations
 
--   settings
-
-Pages should compose feature components rather than contain analytical logic.
+These feature modules are presentation/interaction layers, not analytical engine implementations.
 
 * * * * *
 
-61\. frontend/src/components/
-=============================
+43\. Frontend State
+===================
 
-Purpose:
+Location:
 
-Reserved for reusable UI components.
+`frontend/src/state/`
 
-Examples:
+Current analysis state is maintained through the analysis state module.
 
--   cards
-
--   tables
-
--   charts
-
--   badges
-
--   dialogs
-
--   navigation
-
--   layout components
-
-Reusable components should remain domain-agnostic where practical.
-
-* * * * *
-
-62\. frontend/src/features/
-===========================
-
-Purpose:
-
-Organizes UI by business capability.
-
-Planned feature areas:
-
-```
-frontend/src/features/
-├── analysis/
-├── skills/
-├── matching/
-├── career/
-├── xai/
-└── recommendations/
-
-```
-
-Feature modules should contain presentation and interaction logic related to their respective capabilities.
-
-They should not implement backend analytical algorithms.
-
-* * * * *
-
-63\. frontend/src/hooks/
-========================
-
-Purpose:
-
-Reserved for reusable React hooks.
-
-Potential responsibilities:
-
--   analysis loading
-
--   API state
-
--   upload state
-
--   UI state
-
--   feature-specific behavior
-
-* * * * *
-
-64\. frontend/src/services/
-===========================
-
-Purpose:
-
-Contains frontend service integrations.
-
-Planned structure:
-
-```
-frontend/src/services/
-└── api/
-
-```
-
-API service modules should centralize backend communication.
-
-Components should not repeatedly construct API requests themselves.
-
-* * * * *
-
-65\. frontend/src/state/
-========================
-
-Purpose:
-
-Contains frontend application state.
-
-Current file:
-
-`frontend/src/state/analysisState.ts`
-
-It defines:
+State includes concepts such as:
 
 -   analysis status
 
@@ -1625,169 +1177,79 @@ It defines:
 
 -   error state
 
--   last request ID
+-   request information
 
-The state model corresponds to the canonical backend analysis contract.
+Frontend state must represent API/domain contracts rather than create independent domain definitions.
 
 * * * * *
 
-66\. frontend/src/types/
-========================
+44\. Frontend Services
+======================
 
-Purpose:
+Location:
 
-Contains TypeScript contracts.
+`frontend/src/services/`
 
-Current files:
+Responsible for backend API communication.
+
+API requests should be centralized in service modules instead of being repeatedly constructed inside UI components.
+
+* * * * *
+
+45\. Frontend Types
+===================
+
+Location:
+
+`frontend/src/types/`
+
+Current contracts include:
 
 ```
-frontend/src/types/
-├── analysis.ts
-└── api.ts
+analysis.ts
+api.ts
 
 ```
 
-* * * * *
+These provide TypeScript representations of backend analysis and API contracts.
 
-67\. frontend/src/types/analysis.ts
-===================================
-
-Purpose:
-
-Contains the canonical frontend representation of analysis-domain types.
-
-It mirrors the backend contract for:
-
--   AnalysisResult
-
--   ResumeProfile
-
--   JobProfile
-
--   Skill
-
--   Evidence
-
--   SkillMatch
-
--   SkillGap
-
--   ScoringResult
-
--   XAIResult
-
--   CareerIntelligence
-
--   Recommendation
-
-This file allows the frontend to use strongly typed analytical data.
+They should remain synchronized with stable backend contracts.
 
 * * * * *
 
-68\. frontend/src/types/api.ts
-==============================
-
-Purpose:
-
-Contains API request and response interfaces.
-
-Includes:
-
--   AnalysisOptions
-
--   ClientMetadata
-
--   ResumeAnalysisRequest
-
--   ResumeJDAnalysisRequest
-
--   AnalysisResponse
-
--   AnalysisAcceptedResponse
-
--   DeleteAnalysisResponse
-
--   ErrorResponse
-
-These types should remain synchronized with the backend API contract.
-
-* * * * *
-
-69\. frontend/src/utils/
-========================
-
-Purpose:
-
-Reserved for generic frontend utilities.
-
-Examples may include:
-
--   formatting
-
--   date handling
-
--   score formatting
-
--   validation helpers
-
-Business-specific analytical logic should remain within the appropriate feature or backend engine.
-
-* * * * *
-
-70\. frontend/src/styles/
-=========================
-
-Purpose:
-
-Reserved for global styling and design-system definitions.
-
-Potential responsibilities:
-
--   global CSS
-
--   theme variables
-
--   typography
-
--   layout primitives
-
--   design tokens
-
-* * * * *
-
-71\. Frontend Tests
+46\. Frontend Tests
 ===================
 
 Location:
 
 `frontend/tests/`
 
-Purpose:
-
 Reserved for frontend testing.
 
-Future tests should cover:
+Future coverage should include:
 
--   component rendering
+-   component behavior
 
 -   feature behavior
 
 -   API state transitions
 
--   error states
+-   error handling
 
 -   analysis visualization
 
--   user interaction
+-   user interactions
 
 * * * * *
 
-72\. Documentation Files
-========================
+47\. Documentation
+==================
 
-The repository documentation is divided into dedicated files.
+Documentation is located under:
 
-Planned documentation set:
+`docs/`
+
+Current documentation includes:
 
 ```
 PROJECT_MASTER.md
@@ -1796,6 +1258,7 @@ ARCHITECTURE.md
 API_CONTRACT.md
 DATA_SCHEMA.md
 CODEBASE_MAP.md
+FEATURES.md
 CHANGELOG.md
 SESSION_HANDOFF.md
 
@@ -1803,279 +1266,52 @@ SESSION_HANDOFF.md
 
 Each document has a distinct purpose.
 
-* * * * *
+### Project Master
 
-73\. PROJECT_MASTER.md
-======================
+Permanent project specification and constraints.
 
-Purpose:
+### Project Status
 
-Defines the permanent project specification.
+Current implementation state and progress.
 
-Contains:
+### Architecture
 
--   project identity
+System structure, dependency direction, and component ownership.
 
--   objective
+### API Contract
 
--   scope
+HTTP endpoints and transport contracts.
 
--   architecture principles
+### Data Schema
 
--   technology stack
+Canonical domain and analytical data structures.
 
--   major features
+### Codebase Map
 
--   development rules
+Repository responsibility and file-location reference.
 
--   non-negotiable constraints
+### Features
 
-This document should change infrequently.
+Feature-level scope and implementation status.
 
-* * * * *
+### Changelog
 
-74\. PROJECT_STATUS.md
-======================
+Meaningful project changes.
 
-Purpose:
+### Session Handoff
 
-Tracks the current implementation state.
-
-Contains:
-
--   completed work
-
--   verified checks
-
--   known issues
-
--   current phase
-
--   next tasks
-
--   implementation status
-
-This document should be updated regularly.
+Context required to continue development across AI-assisted sessions.
 
 * * * * *
 
-75\. ARCHITECTURE.md
-====================
-
-Purpose:
-
-Defines the system architecture.
-
-Contains:
-
--   layers
-
--   dependencies
-
--   engine responsibilities
-
--   data flow
-
--   API architecture
-
--   frontend architecture
-
--   infrastructure strategy
-
--   architectural invariants
-
-* * * * *
-
-76\. API_CONTRACT.md
-====================
-
-Purpose:
-
-Defines the HTTP/API interface.
-
-Contains:
-
--   endpoints
-
--   request contracts
-
--   response contracts
-
--   error contracts
-
--   status codes
-
--   API invariants
-
-* * * * *
-
-77\. DATA_SCHEMA.md
-===================
-
-Purpose:
-
-Defines canonical domain data structures.
-
-Contains:
-
--   AnalysisResult
-
--   ResumeProfile
-
--   JobProfile
-
--   Skill
-
--   Evidence
-
--   SkillMatch
-
--   SkillGap
-
--   ScoringResult
-
--   XAIResult
-
--   CareerIntelligence
-
--   Recommendation
-
-* * * * *
-
-78\. CODEBASE_MAP.md
-====================
-
-Purpose:
-
-This document.
-
-It explains where each responsibility belongs in the repository.
-
-* * * * *
-
-79\. CHANGELOG.md
-=================
-
-Purpose:
-
-Tracks meaningful project changes.
-
-Entries should describe:
-
--   architectural changes
-
--   feature additions
-
--   bug fixes
-
--   dependency changes
-
--   schema changes
-
--   important refactoring
-
-Minor generated files should not create unnecessary changelog entries.
-
-* * * * *
-
-80\. SESSION_HANDOFF.md
-=======================
-
-Purpose:
-
-Provides context for continuing development in a new AI-assisted coding session.
-
-It should contain:
-
--   current phase
-
--   completed work
-
--   verified commands
-
--   current repository state
-
--   active task
-
--   next task
-
--   important architectural constraints
-
--   known issues
-
-This file is especially important when development is split across multiple AI chat sessions.
-
-* * * * *
-
-81\. Dependency Direction
-=========================
-
-The intended backend dependency direction is:
-
-```
-API
- ↓
-Orchestration
- ↓
-Domain
- ↓
-Infrastructure
-
-```
-
-Analytical engines operate within the application/domain boundary and must follow the established dependency rules.
-
-The following is prohibited:
-
-```
-Engine A → Engine B → Engine C
-
-```
-
-Instead:
-
-```
-Orchestrator
- ├── Engine A
- ├── Engine B
- └── Engine C
-
-```
-
-The orchestrator determines execution order.
-
-* * * * *
-
-82\. Frontend Dependency Direction
-==================================
-
-The frontend follows:
-
-```
-Pages
- ↓
-Features / Components
- ↓
-Hooks / State
- ↓
-API Services
- ↓
-Backend API
-
-```
-
-Frontend components must not contain backend analytical algorithms.
-
-* * * * *
-
-83\. Canonical Ownership Map
+48\. Canonical Ownership Map
 ============================
 
 | Responsibility | Canonical Location |
 | --- | --- |
 | Application startup | `backend/app/main.py` |
 | Configuration | `backend/app/core/config.py` |
-| Internal exceptions | `backend/app/core/exceptions.py` |
+| Exceptions | `backend/app/core/exceptions.py` |
 | Logging | `backend/app/core/logging.py` |
 | HTTP routes | `backend/app/api/routes/` |
 | API request schemas | `backend/app/schemas/requests.py` |
@@ -2083,272 +1319,257 @@ Frontend components must not contain backend analytical algorithms.
 | API errors | `backend/app/schemas/errors.py` |
 | Domain models | `backend/app/domain/` |
 | Workflow coordination | `backend/app/orchestration/` |
-| Document processing | `backend/app/analysis/document_processor.py` |
+| Resume structure | `backend/app/analysis/resume_structure.py` |
 | Skill extraction | `backend/app/analysis/skill_extractor.py` |
 | Skill normalization | `backend/app/analysis/skill_normalizer.py` |
-| Semantic matching | `backend/app/analysis/semantic_matcher.py` |
-| Gap analysis | `backend/app/analysis/gap_analyzer.py` |
-| Scoring | `backend/app/analysis/score_engine.py` |
-| Explainability | `backend/app/analysis/xai_engine.py` |
-| Career intelligence | `backend/app/analysis/career_engine.py` |
-| Recommendations | `backend/app/analysis/recommendation_engine.py` |
+| ESCO mapping | `backend/app/analysis/esco_mapper.py` |
+| Resume profile construction | `backend/app/analysis/resume_profile_builder.py` |
+| Document processing | `backend/app/infrastructure/parsers/` |
 | Persistence | `backend/app/infrastructure/repositories/` |
-| Parsing | `backend/app/infrastructure/parsers/` |
 | ML infrastructure | `backend/app/infrastructure/ml/` |
 | Backend tests | `backend/tests/` |
 | Frontend application | `frontend/src/app/` |
 | Frontend pages | `frontend/src/pages/` |
 | UI components | `frontend/src/components/` |
-| Feature modules | `frontend/src/features/` |
+| Frontend features | `frontend/src/features/` |
 | Frontend state | `frontend/src/state/` |
-| API services | `frontend/src/services/api/` |
+| API services | `frontend/src/services/` |
 | Frontend types | `frontend/src/types/` |
 | Frontend tests | `frontend/tests/` |
 
 * * * * *
 
-84\. Current Implementation State
-=================================
+49\. Dependency Direction
+=========================
 
-At the completion of Phase 1:
+The intended backend flow is:
+
+```
+API
+ ↓
+Analysis Orchestrator
+ ↓
+Analysis Components
+ ↓
+Domain Models
+ ↓
+Infrastructure
+
+```
+
+The analysis components must not form an uncontrolled chain of direct engine-to-engine dependencies.
+
+The orchestrator controls workflow execution.
+
+The document-processing infrastructure is consumed through its normalized `ParsedDocument` boundary.
+
+* * * * *
+
+50\. Phase Boundaries
+=====================
+
+Phase 1
+-------
+
+Established:
+
+-   project architecture
+
+-   domain contracts
+
+-   API contracts
+
+-   application foundation
+
+-   frontend foundation
+
+-   testing foundation
+
+Phase 2
+-------
 
 Implemented:
 
--   backend package structure
-
--   FastAPI application
-
--   API routing
-
--   configuration
-
--   logging
-
--   exception handling
-
--   API schemas
-
--   domain model structure
-
--   orchestrator interface
-
--   frontend Vite application
-
--   frontend TypeScript contracts
-
--   frontend analysis state
-
--   backend tests
-
--   frontend linting
-
--   frontend production build
-
-Not yet implemented:
-
--   document processing
+-   document validation
 
 -   PDF parsing
 
 -   DOCX parsing
 
--   skill extraction
+-   normalized document blocks
+
+-   provenance
+
+-   `ParsedDocument`
+
+Phase 2 document-processing boundary is frozen.
+
+Phase 3
+-------
+
+Implemented:
+
+-   resume structure interpretation
+
+-   deterministic skill extraction
 
 -   skill normalization
 
--   transformer embeddings
+-   ESCO mapping adapter
+
+-   evidence preservation
+
+-   confidence handling
+
+-   canonical resume-profile construction
+
+-   real PDF/DOCX fixture verification
+
+Phase 3 consumes the Phase 2 `ParsedDocument` contract.
+
+Future Phases
+-------------
+
+Reserved for:
+
+-   JD analysis
 
 -   semantic matching
 
--   ESCO integration
+-   skill-gap analysis
 
--   gap analysis
+-   scoring
 
--   scoring engine
+-   XAI
 
--   XAI engine
+-   career intelligence
 
--   career intelligence engine
+-   recommendations
 
--   recommendation engine
+-   broader ML/transformer integration
 
--   persistence implementation
-
--   production frontend feature pages
+-   production frontend analysis workflows
 
 * * * * *
 
-85\. Validation Status
-======================
+51\. Current Repository State
+=============================
 
-Backend validation:
+Phase 3 is complete and committed.
 
-`python -m compileall -q backend`
+The current Phase 3 implementation is centered around:
 
-Status:
+```
+ParsedDocument
+      ↓
+ResumeStructureInterpreter
+      ↓
+SkillExtractor
+      ↓
+SkillNormalizer
+      ↓
+ESCOMapper
+      ↓
+ResumeProfileBuilder
 
-PASS
+```
 
-Backend tests:
+Current verification includes:
 
-`python -m pytest backend/tests -q`
+-   Phase 3 unit tests
 
-Status:
+-   Phase 3 integration tests
 
-PASS
+-   full backend regression suite
 
-Current result:
+-   real PDF parsing verification
 
-`9 passed`
+-   real DOCX parsing and full Phase 3 pipeline verification
 
-Frontend lint:
+The latest Phase 3 commit is:
 
-`npm run lint`
-
-Status:
-
-PASS
-
-Frontend build:
-
-`npm run build`
-
-Status:
-
-PASS
-
-OpenAPI route verification confirms the expected API endpoints are registered.
-
-Dependency-direction verification:
-
-`NONE`
-
-Duplicate module-name verification:
-
-`NONE`
+`0b73efe Complete Phase 3 resume intelligence pipeline`
 
 * * * * *
 
-86\. Codebase Invariants
+52\. Codebase Invariants
 ========================
 
 The following rules must remain true:
 
-1.  There is one canonical implementation for each analytical responsibility.
+1.  Each analytical responsibility has one canonical implementation.
 
-2.  The orchestrator controls analytical workflow execution.
+2.  The analysis orchestrator controls workflow execution.
 
-3.  Engines do not directly call other engines.
+3.  Analytical engines must not create duplicate engines or domain models.
 
-4.  Domain models are independent of API and UI implementation.
+4.  Domain models remain independent of API and UI implementation.
 
 5.  API routes do not contain analytical algorithms.
 
 6.  Frontend does not implement backend analytical logic.
 
-7.  `AnalysisResult` remains the canonical analysis result.
+7.  `AnalysisResult` remains the canonical top-level result.
 
-8.  ScoreEngine owns official scoring.
+8.  `ParsedDocument` remains the frozen document-processing boundary.
 
-9.  XAIEngine explains existing results.
+9.  Phase 3 consumes `ParsedDocument` rather than reparsing source files.
 
-10. RecommendationEngine owns recommendations.
+10. Skill normalization produces canonical skill identities.
 
 11. Evidence should be preserved for analytical conclusions.
 
-12. Resume-only analysis does not fabricate job-specific results.
+12. `ESCOMapper` owns ESCO mapping behavior.
 
-13. New dependencies must have a clear architectural justification.
+13. `ResumeProfileBuilder` owns canonical resume-profile construction.
 
-14. Infrastructure must not become a second source of domain logic.
+14. ScoreEngine will own official scoring.
 
-15. Tests must remain organized according to their testing responsibility.
+15. XAIEngine will explain existing analytical outputs.
 
-* * * * *
+16. RecommendationEngine will own recommendations.
 
-87\. AI Development Rule
-========================
+17. Infrastructure must not become a second source of domain logic.
 
-Any AI-assisted modification to the repository must first determine:
+18. New dependencies require architectural justification.
 
-1.  Which responsibility is being changed.
+19. Tests must remain organized according to their responsibility.
 
-2.  Which canonical module owns that responsibility.
+20. AI-assisted changes must reuse existing canonical components instead of introducing parallel implementations.
+---
 
-3.  Whether an existing implementation already exists.
+## Phase 4 — Resume Quality & ATS Intelligence — Completed
 
-4.  Whether the proposed change creates duplicate logic.
+Phase 4 has been completed through the implementation and integration of Resume Quality Intelligence, ATS Intelligence, canonical `AnalysisResult` integration, the centralized Analysis Orchestrator, and the Resume Analysis API.
 
-5.  Whether the change violates dependency direction.
+The complete Phase 4 workflow is:
 
-6.  Whether domain/API/frontend contracts need updating.
+`Resume Upload → Document Processing → StructuredResume → Skill Extraction → Normalization → ESCO Mapping → ResumeProfile → Resume Quality → ATS Intelligence → AnalysisResult → API Response`
 
-7.  Which tests must be updated.
+Completed Phase 4 stages:
 
-AI-generated code must fit the existing architecture rather than introducing an alternative architecture.
+- Phase 4B — Resume Quality Intelligence
+- Phase 4C — ATS Intelligence
+- Phase 4D — Canonical AnalysisResult Integration
+- Phase 4E — Analysis Orchestrator
+- Phase 4F — Analysis API Integration
+- Phase 4G — End-to-End Integration & Regression
+- Phase 4H — Documentation, Verification & Freeze
 
-* * * * *
+Phase 4 preserves the frozen Phase 2 document-processing boundary and reuses the Phase 3 resume-intelligence pipeline without introducing duplicate parsing, skill extraction, normalization, or ESCO mapping systems.
 
-Document Processing Infrastructure
-----------------------------------
+Resume + Job Description analysis, semantic matching, scoring, XAI, recommendations, career intelligence, LLM-based analysis, background workers, Redis, Celery, and other Phase 5 functionality remain explicitly out of scope.
 
-Actual Phase 2 implementation:
+Final verification:
 
-```
-backend/app/infrastructure/parsers/
-├── __init__.py
-├── base.py
-├── models.py
-├── validation.py
-├── pdf_parser.py
-├── docx_parser.py
-└── document_processor.py
+- Focused Phase 4 integration tests: **28 passed**
+- Full regression suite: **160 passed**
+- Warnings: **7 dependency/deprecation warnings**
+- Python compilation: **passed**
+- `git diff --check`: **passed**
 
-```
+The complete Phase 4 implementation history is documented in:
 
-### Module Responsibilities
+`docs/PHASE_4.md`
 
-| Module | Responsibility |
-| --- | --- |
-| `base.py` | Abstract document parser contract |
-| `models.py` | Normalized document models and provenance structures |
-| `validation.py` | File/document validation |
-| `pdf_parser.py` | PDF text/block extraction using PyMuPDF |
-| `docx_parser.py` | DOCX paragraph/table extraction using python-docx |
-| `document_processor.py` | Validation, parser selection, and normalized processing entry point |
-| `__init__.py` | Public parser-layer exports |
-
-### Phase 2 Processing Flow
-
-```
-Input bytes
-    ↓
-DocumentProcessor
-    ↓
-validate_document()
-    ↓
-PDFParser / DOCXParser
-    ↓
-ParsedDocument
-
-```
-
-### Important Boundary
-
-The parser layer performs document processing only.
-
-It does not perform:
-
--   Skill extraction
-
--   Semantic matching
-
--   Scoring
-
--   Explainability
-
--   Recommendations
-
--   Career intelligence
-
-Those responsibilities remain assigned to downstream components and future phases.
+Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.

@@ -3,11 +3,13 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from backend.app.domain.ats_intelligence import ATSIntelligenceResult
 from backend.app.domain.career import CareerIntelligence
 from backend.app.domain.gaps import SkillAnalysis
 from backend.app.domain.job import JobProfile
 from backend.app.domain.recommendations import Recommendation
 from backend.app.domain.resume import ResumeProfile
+from backend.app.domain.resume_quality import ResumeQualityResult
 from backend.app.domain.scoring import ScoringResult
 from backend.app.domain.xai import XAIResult
 
@@ -59,6 +61,8 @@ class AnalysisResult(BaseModel):
     job_profile: JobProfile | None = None
 
     skill_analysis: SkillAnalysis = Field(default_factory=SkillAnalysis)
+    resume_quality: ResumeQualityResult | None = None
+    ats_intelligence: ATSIntelligenceResult | None = None
 
     scoring: ScoringResult | None = None
     xai: XAIResult | None = None

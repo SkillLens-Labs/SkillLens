@@ -297,9 +297,86 @@ export interface AnalysisResult {
   resume_profile: ResumeProfile;
   job_profile: JobProfile | null;
   skill_analysis: SkillAnalysis;
+  resume_quality: ResumeQualityResult | null;
+  ats_intelligence: ATSIntelligenceResult | null;
   scoring: ScoringResult | null;
   xai: XAIResult | null;
   career_intelligence: CareerIntelligence | null;
   recommendations: Recommendation[];
   metadata: AnalysisMetadata;
+}
+
+export type ResumeQualitySeverity = "info" | "low" | "medium" | "high";
+
+export type ResumeQualityDimension =
+  | "structure"
+  | "completeness"
+  | "skills_presentation"
+  | "experience"
+  | "education"
+  | "projects"
+  | "content_quality"
+  | "consistency";
+
+export interface ResumeQualityFinding {
+  finding_id: string;
+  category: ResumeQualityDimension;
+  severity: ResumeQualitySeverity;
+  title: string;
+  explanation: string;
+  recommendation: string | null;
+  evidence: Evidence[];
+  confidence: Confidence;
+}
+
+export interface ResumeQualityDimensionScore {
+  dimension: ResumeQualityDimension;
+  score: number;
+  weight: number;
+}
+
+export interface ResumeQualityResult {
+  overall_score: number;
+  dimension_scores: ResumeQualityDimensionScore[];
+  findings: ResumeQualityFinding[];
+  confidence: Confidence;
+  warnings: string[];
+}
+
+export type ATSIntelligenceSeverity = "info" | "low" | "medium" | "high";
+
+export type ATSIntelligenceDimension =
+  | "machine_readability"
+  | "section_detectability"
+  | "text_extraction"
+  | "heading_clarity"
+  | "skill_detectability"
+  | "contact_detectability"
+  | "formatting_risk"
+  | "content_redundancy"
+  | "standard_information";
+
+export interface ATSIntelligenceFinding {
+  finding_id: string;
+  category: ATSIntelligenceDimension;
+  severity: ATSIntelligenceSeverity;
+  title: string;
+  explanation: string;
+  recommendation: string | null;
+  evidence: Evidence[];
+  confidence: Confidence;
+}
+
+export interface ATSIntelligenceDimensionScore {
+  dimension: ATSIntelligenceDimension;
+  score: number;
+  weight: number;
+}
+
+export interface ATSIntelligenceResult {
+  overall_score: number;
+  dimension_scores: ATSIntelligenceDimensionScore[];
+  findings: ATSIntelligenceFinding[];
+  confidence: Confidence;
+  warnings: string[];
 }

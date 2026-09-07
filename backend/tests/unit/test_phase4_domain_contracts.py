@@ -101,3 +101,44 @@ def test_analysis_result_can_carry_phase4_results():
 
     assert result.resume_quality is quality
     assert result.ats_intelligence is ats
+
+
+def test_analysis_result_phase4_fields_are_optional_and_canonical():
+    result = AnalysisResult(
+        analysis_id="analysis-1",
+        analysis_mode="resume_only",
+        status="completed",
+        input={"resume_document_id": "document-1"},
+        resume_profile=_profile(),
+    )
+
+    assert result.resume_quality is None
+    assert result.ats_intelligence is None
+
+
+def test_analysis_result_serializes_phase4_fields():
+    quality = ResumeQualityResult(
+        overall_score=84.0,
+        confidence=_confidence(),
+    )
+    ats = ATSIntelligenceResult(
+        overall_score=79.0,
+        confidence=_confidence(),
+    )
+
+    result = AnalysisResult(
+        analysis_id="analysis-1",
+        analysis_mode="resume_only",
+        status="completed",
+        input={"resume_document_id": "document-1"},
+        resume_profile=_profile(),
+        resume_quality=quality,
+        ats_intelligence=ats,
+    )
+
+    payload = result.model_dump()
+
+    assert payload["resume_quality"]["overall_score"] == 84.0
+    assert payload["ats_intelligence"]["overall_score"] == 79.0
+    assert payload["resume_quality"]["confidence"]["score"] == 0.9
+    assert payload["ats_intelligence"]["confidence"]["score"] == 0.9

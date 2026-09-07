@@ -1,9 +1,15 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
 
 
 client = TestClient(app)
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
+PDF_FIXTURE = FIXTURES_DIR / "phase3_sample_resume.pdf"
+DOCX_FIXTURE = FIXTURES_DIR / "phase3_sample_resume.docx"
 
 
 def test_health_endpoint() -> None:
@@ -18,34 +24,304 @@ def test_health_endpoint() -> None:
     assert data["version"] == "0.1.0"
 
 
-def test_resume_analysis_endpoint_contract() -> None:
+def test_resume_analysis_endpoint_returns_canonical_result() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert "data" in body
+
+    data = body["data"]
+
+    assert data["analysis_id"]
+    assert data["schema_version"] == "1.0.0"
+    assert data["analysis_mode"] == "resume_only"
+    assert data["status"] == "completed"
+    assert data["input"]["resume_document_id"]
+    assert data["resume_profile"] is not None
+    assert data["resume_quality"] is not None
+    assert data["ats_intelligence"] is not None
+    assert data["job_profile"] is None
+    assert data["scoring"] is None
+    assert data["xai"] is None
+    assert data["career_intelligence"] is None
+    assert data["recommendations"] == []
+
+
+def test_resume_analysis_endpoint_supports_docx() -> None:
+    with DOCX_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.docx",
+                    resume,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+        )
+
+    assert response.status_code == 200
+
+    data = response.json()["data"]
+
+    assert data["analysis_mode"] == "resume_only"
+    assert data["status"] == "completed"
+    assert data["resume_profile"] is not None
+    assert data["resume_quality"] is not None
+    assert data["ats_intelligence"] is not None
+
+
+def test_resume_analysis_accepts_options_and_client_metadata() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+            data={
+                "options": (
+                    '{"include_career_intelligence": true,'
+                    '"include_recommendations": true,'
+                    '"include_xai": true}'
+                ),
+                "client_metadata": (
+                    '{"source": "api-test",'
+                    '"session_id": "test-session",'
+                    '"extra": {"test": true}}'
+                ),
+            },
+        )
+
+    assert response.status_code == 200
+
+    data = response.json()["data"]
+
+    assert data["metadata"]["extra"]["source"] == "api-test"
+    assert data["metadata"]["extra"]["session_id"] == "test-session"
+
+
+def test_resume_analysis_rejects_invalid_options_json() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+            data={
+                "options": "{invalid-json",
+            },
+        )
+
+    assert response.status_code == 400
+
+    data = response.json()
+
+    assert data["code"] == "INVALID_ANALYSIS_OPTIONS"
+    assert data["field"] == "options"
+    assert data["request_id"]
+
+
+def test_resume_analysis_rejects_invalid_client_metadata_json() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+            data={
+                "client_metadata": "{invalid-json",
+            },
+        )
+
+    assert response.status_code == 400
+
+    data = response.json()
+
+    assert data["code"] == "INVALID_CLIENT_METADATA"
+    assert data["field"] == "client_metadata"
+    assert data["request_id"]
+
+
+def test_resume_analysis_rejects_unsupported_document_type() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume",
+        files={
+            "resume": (
+                "resume.txt",
+                b"plain text resume",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.json()
+
+    assert data["code"] == "UNSUPPORTED_DOCUMENT_TYPE"
+    assert data["request_id"]
+
+
+def test_resume_analysis_rejects_empty_document() -> None:
     response = client.post(
         "/api/v1/analyses/resume",
         files={
             "resume": (
                 "resume.pdf",
-                b"placeholder resume content",
+                b"",
                 "application/pdf",
             )
         },
     )
 
-    assert response.status_code == 501
+    assert response.status_code == 400
 
     data = response.json()
 
-    assert data["code"] == "ANALYSIS_NOT_IMPLEMENTED"
-    assert "message" in data
-    assert "request_id" in data
+    assert data["code"] == "EMPTY_DOCUMENT"
+    assert data["request_id"]
 
 
-def test_resume_jd_analysis_endpoint_contract() -> None:
+def test_resume_analysis_rejects_content_mismatch() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume",
+        files={
+            "resume": (
+                "resume.pdf",
+                b"not a pdf",
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.json()
+
+    assert data["code"] == "DOCUMENT_CONTENT_MISMATCH"
+    assert data["request_id"]
+
+
+def test_get_analysis_endpoint_returns_existing_analysis() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        create_response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+        )
+
+    assert create_response.status_code == 200
+
+    analysis_id = create_response.json()["data"]["analysis_id"]
+
+    response = client.get(
+        f"/api/v1/analyses/{analysis_id}",
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["data"]["analysis_id"] == analysis_id
+    assert body["data"]["analysis_mode"] == "resume_only"
+    assert body["data"]["status"] == "completed"
+
+
+def test_get_analysis_endpoint_returns_not_found() -> None:
+    response = client.get(
+        "/api/v1/analyses/nonexistent-analysis-id",
+    )
+
+    assert response.status_code == 404
+
+    data = response.json()
+
+    assert data["code"] == "ANALYSIS_NOT_FOUND"
+    assert data["field"] == "analysis_id"
+    assert data["request_id"]
+
+
+def test_delete_analysis_endpoint_deletes_existing_analysis() -> None:
+    with PDF_FIXTURE.open("rb") as resume:
+        create_response = client.post(
+            "/api/v1/analyses/resume",
+            files={
+                "resume": (
+                    "phase3_sample_resume.pdf",
+                    resume,
+                    "application/pdf",
+                )
+            },
+        )
+
+    assert create_response.status_code == 200
+
+    analysis_id = create_response.json()["data"]["analysis_id"]
+
+    response = client.delete(
+        f"/api/v1/analyses/{analysis_id}",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["analysis_id"] == analysis_id
+    assert data["deleted"] is True
+    assert data["message"]
+
+
+def test_delete_analysis_endpoint_returns_not_found() -> None:
+    response = client.delete(
+        "/api/v1/analyses/nonexistent-analysis-id",
+    )
+
+    assert response.status_code == 404
+
+    data = response.json()
+
+    assert data["code"] == "ANALYSIS_NOT_FOUND"
+    assert data["field"] == "analysis_id"
+    assert data["request_id"]
+
+
+def test_resume_jd_analysis_remains_out_of_scope() -> None:
     response = client.post(
         "/api/v1/analyses/resume-jd",
         files={
             "resume": (
                 "resume.pdf",
-                b"placeholder resume content",
+                b"placeholder",
                 "application/pdf",
             ),
             "job_description": (
@@ -61,29 +337,4 @@ def test_resume_jd_analysis_endpoint_contract() -> None:
     data = response.json()
 
     assert data["code"] == "ANALYSIS_NOT_IMPLEMENTED"
-    assert "message" in data
-    assert "request_id" in data
-
-
-def test_get_analysis_endpoint_contract() -> None:
-    response = client.get("/api/v1/analyses/test-analysis-id")
-
-    assert response.status_code == 501
-
-    data = response.json()
-
-    assert data["code"] == "ANALYSIS_NOT_IMPLEMENTED"
-    assert "message" in data
-    assert "request_id" in data
-
-
-def test_delete_analysis_endpoint_contract() -> None:
-    response = client.delete("/api/v1/analyses/test-analysis-id")
-
-    assert response.status_code == 501
-
-    data = response.json()
-
-    assert data["code"] == "ANALYSIS_NOT_IMPLEMENTED"
-    assert "message" in data
-    assert "request_id" in data
+    assert data["request_id"]

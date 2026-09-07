@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from backend.app.domain.analysis import AnalysisResult
 from backend.app.schemas.requests import (
     ResumeAnalysisRequest,
+    ResumeDocumentInput,
     ResumeJDAnalysisRequest,
 )
 
@@ -13,10 +14,10 @@ class AnalysisOrchestrator(ABC):
     @abstractmethod
     def analyze_resume(
         self,
+        document_input: ResumeDocumentInput,
         request: ResumeAnalysisRequest,
     ) -> AnalysisResult:
         """Run a resume-only analysis."""
-
         raise NotImplementedError
 
     @abstractmethod
@@ -25,7 +26,6 @@ class AnalysisOrchestrator(ABC):
         request: ResumeJDAnalysisRequest,
     ) -> AnalysisResult:
         """Run a resume + job-description analysis."""
-
         raise NotImplementedError
 
     @abstractmethod
@@ -34,7 +34,6 @@ class AnalysisOrchestrator(ABC):
         analysis_id: str,
     ) -> AnalysisResult | None:
         """Retrieve an existing analysis result."""
-
         raise NotImplementedError
 
     @abstractmethod
@@ -43,5 +42,4 @@ class AnalysisOrchestrator(ABC):
         analysis_id: str,
     ) -> bool:
         """Delete an existing analysis."""
-
         raise NotImplementedError

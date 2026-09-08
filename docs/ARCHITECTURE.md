@@ -2231,3 +2231,36 @@ The complete Phase 4 implementation history is documented in:
 `docs/PHASE_4.md`
 
 Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.
+
+## Phase 5 — JD Intelligence & Resume–JD Matching — COMPLETED
+
+Phase 5 extends the existing analysis architecture with Job Description intelligence and Resume–JD matching.
+
+Implemented components:
+- JDStructureInterpreter
+- JDRequirementExtractor
+- JDSkillExtractor
+- JDSkillNormalizer
+- JDProfileBuilder
+- SkillMatcher
+- RequirementAligner
+
+The existing DocumentProcessor, SkillNormalizer, and ESCOMapper are reused rather than duplicated.
+
+Semantic matching uses all-MiniLM-L6-v2 with cosine similarity.
+
+The resulting flow is:
+
+ResumeProfile + JobProfile
+        ↓
+SkillMatcher
+        ↓
+RequirementAligner
+        ↓
+MatchingResult
+        ↓
+AnalysisResult
+
+Phase 5 does not introduce final candidate-job scoring or XAI. Those components remain reserved for Phase 6.
+
+Final verification: **245 tests passed, 7 warnings**.

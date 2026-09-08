@@ -5,6 +5,7 @@ from backend.app.domain.ats_intelligence import (
     ATSIntelligenceResult,
 )
 from backend.app.domain.confidence import Confidence, ConfidenceLevel
+from backend.app.domain.matching import MatchingResult
 from backend.app.domain.resume import ResumeProfile
 from backend.app.domain.resume_quality import (
     ResumeQualityDimension,
@@ -142,3 +143,114 @@ def test_analysis_result_serializes_phase4_fields():
     assert payload["ats_intelligence"]["overall_score"] == 79.0
     assert payload["resume_quality"]["confidence"]["score"] == 0.9
     assert payload["ats_intelligence"]["confidence"]["score"] == 0.9
+
+
+def test_analysis_result_phase5_matching_is_optional_for_resume_only():
+
+    result = AnalysisResult(
+
+        analysis_id="analysis-1",
+
+        analysis_mode="resume_only",
+
+        status="completed",
+
+        input={"resume_document_id": "document-1"},
+
+        resume_profile=_profile(),
+
+    )
+
+    assert result.matching is None
+
+    assert result.scoring is None
+
+    assert result.xai is None
+
+
+def test_analysis_result_can_carry_phase5_matching():
+
+    matching = MatchingResult(
+
+        skill_matches=[],
+
+        requirement_alignments=[],
+
+        confidence=_confidence(),
+
+    )
+
+    result = AnalysisResult(
+
+        analysis_id="analysis-1",
+
+        analysis_mode="resume_jd",
+
+        status="completed",
+
+        input={
+
+            "resume_document_id": "document-1",
+
+            "job_description_document_id": "job-1",
+
+        },
+
+        resume_profile=_profile(),
+
+        matching=matching,
+
+    )
+
+    assert result.matching is matching
+
+    assert result.scoring is None
+
+    assert result.xai is None
+
+
+def test_analysis_result_serializes_phase5_matching():
+
+    matching = MatchingResult(
+
+        skill_matches=[],
+
+        requirement_alignments=[],
+
+        confidence=_confidence(),
+
+    )
+
+    result = AnalysisResult(
+
+        analysis_id="analysis-1",
+
+        analysis_mode="resume_jd",
+
+        status="completed",
+
+        input={
+
+            "resume_document_id": "document-1",
+
+            "job_description_document_id": "job-1",
+
+        },
+
+        resume_profile=_profile(),
+
+        matching=matching,
+
+    )
+
+    payload = result.model_dump()
+
+    assert payload["matching"]["skill_matches"] == []
+
+    assert payload["matching"]["requirement_alignments"] == []
+
+    assert payload["matching"]["confidence"]["score"] == 0.9
+
+    assert payload["scoring"] is None
+
+    assert payload["xai"] is None

@@ -1689,3 +1689,27 @@ The complete Phase 4 implementation history is documented in:
 `docs/PHASE_4.md`
 
 Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.
+
+## Phase 5 — JD Intelligence & Resume–JD Matching — COMPLETED
+
+Phase 5 API integration is complete and frozen.
+
+Implemented endpoint:
+
+POST /api/v1/analyses/resume-jd
+
+The endpoint accepts a resume and job-description document and returns the canonical AnalysisResult containing ResumeProfile, JobProfile, and structured Resume–JD MatchingResult data.
+
+Phase 5 matching includes:
+- JD requirements
+- Required/preferred classification
+- JD skills
+- Skill normalization
+- ESCO mapping
+- Exact and semantic matching
+- Requirement alignment
+- Evidence and confidence
+
+Final candidate-job scoring and XAI are intentionally excluded from Phase 5 and are owned by Phase 6.
+
+OpenAPI verification passed.

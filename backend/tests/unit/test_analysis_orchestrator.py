@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from backend.app.analysis.ats_intelligence import ATSIntelligenceAnalyzer
 from backend.app.analysis.esco_mapper import ESCOMapper
+from backend.app.analysis.jd_structure import JDSectionType
 from backend.app.analysis.resume_profile_builder import ResumeProfileBuilder
 from backend.app.analysis.resume_quality import ResumeQualityAnalyzer
 from backend.app.analysis.resume_structure import ResumeSectionType, ResumeStructureInterpreter
@@ -19,7 +20,12 @@ from backend.app.orchestration.analysis_orchestrator import AnalysisOrchestrator
 from backend.app.orchestration.concrete_analysis_orchestrator import (
     ConcreteAnalysisOrchestrator,
 )
-from backend.app.schemas.requests import ResumeAnalysisRequest, ResumeDocumentInput
+from backend.app.schemas.requests import (
+    JobDescriptionDocumentInput,
+    ResumeAnalysisRequest,
+    ResumeDocumentInput,
+    ResumeJDAnalysisRequest,
+)
 
 
 class StubDocumentProcessor:
@@ -93,6 +99,67 @@ def _document() -> ParsedDocument:
             ),
         ),
     )
+
+
+
+class StubResumeJDDocumentProcessor:
+    """Test adapter that returns distinct resume and JD documents."""
+
+    def __init__(
+        self,
+        resume_document: ParsedDocument,
+        job_document: ParsedDocument,
+    ) -> None:
+        self.resume_document = resume_document
+        self.job_document = job_document
+
+    def process(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None = None,
+        document_id: str | None = None,
+    ) -> ParsedDocument:
+        if filename == "resume.pdf":
+            return self.resume_document
+        if filename == "job.pdf":
+            return self.job_document
+        raise AssertionError(f"Unexpected filename: {filename}")
+
+
+def _job_document() -> ParsedDocument:
+    return ParsedDocument(
+        document_id="orchestrator-job-001",
+        document_type=DocumentType.PDF,
+        blocks=(
+            _block("Data Engineer", DocumentBlockType.PARAGRAPH, 0),
+            _block("About the Role", DocumentBlockType.HEADING, 1),
+            _block(
+                "Build scalable data systems using Python and SQL.",
+                DocumentBlockType.PARAGRAPH,
+                2,
+            ),
+            _block("Responsibilities", DocumentBlockType.HEADING, 3),
+            _block(
+                "Develop data pipelines and analytical services.",
+                DocumentBlockType.BULLET,
+                4,
+            ),
+            _block("Required Qualifications", DocumentBlockType.HEADING, 5),
+            _block(
+                "Python and SQL",
+                DocumentBlockType.BULLET,
+                6,
+            ),
+            _block("Preferred Qualifications", DocumentBlockType.HEADING, 7),
+            _block(
+                "Docker experience",
+                DocumentBlockType.BULLET,
+                8,
+            ),
+        ),
+    )
+
 
 
 def _document_input() -> ResumeDocumentInput:
@@ -217,13 +284,6 @@ def test_resume_only_result_has_no_jd_analysis() -> None:
     assert result.input.job_description_document_id is None
 
 
-def test_resume_jd_analysis_remains_out_of_phase4_scope() -> None:
-    orchestrator = _orchestrator()
-
-    with __import__("pytest").raises(NotImplementedError):
-        orchestrator.analyze_resume_jd(None)  # type: ignore[arg-type]
-
-
 def test_analyze_resume_uses_canonical_document_input_contract() -> None:
     orchestrator = _orchestrator()
 
@@ -253,3 +313,79 @@ def test_phase3_components_remain_single_source_of_truth() -> None:
         ResumeSectionType.EDUCATION,
         ResumeSectionType.PROJECTS,
     ]
+
+
+def test_resume_jd_analysis_runs_complete_phase5_pipeline() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert result.analysis_id
+    assert result.analysis_mode == AnalysisMode.RESUME_JD
+    assert result.status == AnalysisStatus.COMPLETED
+
+    assert result.input.resume_document_id == "orchestrator-resume-001"
+    assert result.input.job_description_document_id == "orchestrator-job-001"
+
+    assert result.resume_profile.skills
+
+    assert result.job_profile is not None
+    assert result.job_profile.document_id == "orchestrator-job-001"
+    assert result.job_profile.job_title == "Data Engineer"
+    assert result.job_profile.required_skills
+
+    assert result.matching is not None
+    assert result.matching.skill_matches
+    assert result.matching.requirement_alignments
+    assert all(
+        alignment.requirement_id
+        for alignment in result.matching.requirement_alignments
+    )
+
+    assert result.scoring is None
+    assert result.xai is None
+
+    assert result.metadata.extra["job_requirement_count"] >= 2
+    assert result.metadata.extra["job_skill_count"] >= 2
+
+
+def test_resume_jd_analysis_stores_result() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert orchestrator.get_analysis(result.analysis_id) is result

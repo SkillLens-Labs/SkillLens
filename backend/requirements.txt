@@ -8,3 +8,8 @@ pytest-asyncio
 httpx
 PyMuPDF>=1.24,<2.0
 python-docx>=1.1,<2.0
+
+# Phase 5 — Semantic JD/Resume Matching
+sentence-transformers==6.0.1
+torch==2.8.0
+transformers==5.16.1

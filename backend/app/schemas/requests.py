@@ -26,6 +26,13 @@ class ResumeDocumentInput(BaseModel):
     content_type: str | None = None
 
 
+class JobDescriptionDocumentInput(BaseModel):
+    """Raw job-description document supplied to the analysis orchestrator."""
+    filename: str
+    content: bytes
+    content_type: str | None = None
+
+
 class ResumeAnalysisRequest(BaseModel):
     """Contract for a resume-only analysis request."""
 

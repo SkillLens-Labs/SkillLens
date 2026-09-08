@@ -4,9 +4,9 @@ from backend.app.domain.analysis import AnalysisResult
 from backend.app.schemas.requests import (
     ResumeAnalysisRequest,
     ResumeDocumentInput,
+    JobDescriptionDocumentInput,
     ResumeJDAnalysisRequest,
 )
-
 
 class AnalysisOrchestrator(ABC):
     """Contract for the single SkillLens analysis orchestrator."""
@@ -23,6 +23,8 @@ class AnalysisOrchestrator(ABC):
     @abstractmethod
     def analyze_resume_jd(
         self,
+        resume_input: ResumeDocumentInput,
+        job_description_input: JobDescriptionDocumentInput,
         request: ResumeJDAnalysisRequest,
     ) -> AnalysisResult:
         """Run a resume + job-description analysis."""

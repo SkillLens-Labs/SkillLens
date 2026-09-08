@@ -11,9 +11,10 @@ from backend.app.schemas.requests import (
     ClientMetadata,
     ResumeAnalysisRequest,
     ResumeDocumentInput,
+    JobDescriptionDocumentInput,
+    ResumeJDAnalysisRequest,
 )
 from backend.app.schemas.responses import (
-    AnalysisAcceptedResponse,
     AnalysisResponse,
     DeleteAnalysisResponse,
 )
@@ -100,19 +101,47 @@ async def analyze_resume(
 
 @router.post(
     "/resume-jd",
-    response_model=AnalysisAcceptedResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    response_model=AnalysisResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def analyze_resume_jd(
     resume: UploadFile = File(...),
     job_description: UploadFile = File(...),
-) -> AnalysisAcceptedResponse:
-    """Resume + job-description analysis remains outside Phase 4."""
+    options: str | None = Form(default=None),
+    client_metadata: str | None = Form(default=None),
+) -> AnalysisResponse:
+    """Run synchronous resume + job-description analysis."""
 
-    raise ApplicationError(
-        code="ANALYSIS_NOT_IMPLEMENTED",
-        message="Resume + job-description analysis is not implemented in Phase 4.",
+    resume_content = await resume.read()
+    job_description_content = await job_description.read()
+
+    parsed_request = _parse_request_payload(
+        options=options,
+        client_metadata=client_metadata,
     )
+
+    resume_input = ResumeDocumentInput(
+        filename=resume.filename or "",
+        content=resume_content,
+        content_type=resume.content_type,
+    )
+
+    job_description_input = JobDescriptionDocumentInput(
+        filename=job_description.filename or "",
+        content=job_description_content,
+        content_type=job_description.content_type,
+    )
+
+    result = _orchestrator.analyze_resume_jd(
+        resume_input,
+        job_description_input,
+        ResumeJDAnalysisRequest(
+            options=parsed_request.options,
+            client_metadata=parsed_request.client_metadata,
+        ),
+    )
+
+    return AnalysisResponse(data=result)
 
 
 @router.get(

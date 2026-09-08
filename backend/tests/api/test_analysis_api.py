@@ -10,6 +10,7 @@ client = TestClient(app)
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 PDF_FIXTURE = FIXTURES_DIR / "phase3_sample_resume.pdf"
 DOCX_FIXTURE = FIXTURES_DIR / "phase3_sample_resume.docx"
+JD_FIXTURE = FIXTURES_DIR / "phase5_sample_job_description.docx"
 
 
 def test_health_endpoint() -> None:
@@ -25,14 +26,14 @@ def test_health_endpoint() -> None:
 
 
 def test_resume_analysis_endpoint_returns_canonical_result() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
         )
@@ -85,14 +86,14 @@ def test_resume_analysis_endpoint_supports_docx() -> None:
 
 
 def test_resume_analysis_accepts_options_and_client_metadata() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
             data={
@@ -118,14 +119,14 @@ def test_resume_analysis_accepts_options_and_client_metadata() -> None:
 
 
 def test_resume_analysis_rejects_invalid_options_json() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
             data={
@@ -143,14 +144,14 @@ def test_resume_analysis_rejects_invalid_options_json() -> None:
 
 
 def test_resume_analysis_rejects_invalid_client_metadata_json() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
             data={
@@ -228,14 +229,14 @@ def test_resume_analysis_rejects_content_mismatch() -> None:
 
 
 def test_get_analysis_endpoint_returns_existing_analysis() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         create_response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
         )
@@ -272,14 +273,14 @@ def test_get_analysis_endpoint_returns_not_found() -> None:
 
 
 def test_delete_analysis_endpoint_deletes_existing_analysis() -> None:
-    with PDF_FIXTURE.open("rb") as resume:
+    with DOCX_FIXTURE.open("rb") as resume:
         create_response = client.post(
             "/api/v1/analyses/resume",
             files={
                 "resume": (
-                    "phase3_sample_resume.pdf",
+                    "phase3_sample_resume.docx",
                     resume,
-                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
         )
@@ -315,26 +316,43 @@ def test_delete_analysis_endpoint_returns_not_found() -> None:
     assert data["request_id"]
 
 
-def test_resume_jd_analysis_remains_out_of_scope() -> None:
-    response = client.post(
-        "/api/v1/analyses/resume-jd",
-        files={
-            "resume": (
-                "resume.pdf",
-                b"placeholder",
-                "application/pdf",
-            ),
-            "job_description": (
-                "job.txt",
-                b"placeholder job description",
-                "text/plain",
-            ),
-        },
-    )
+def test_resume_jd_analysis_endpoint_returns_matching_result() -> None:
+    with DOCX_FIXTURE.open("rb") as resume, JD_FIXTURE.open("rb") as job_description:
+        response = client.post(
+            "/api/v1/analyses/resume-jd",
+            files={
+                "resume": (
+                    "phase3_sample_resume.docx",
+                    resume,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+                "job_description": (
+                    "phase5_sample_job_description.docx",
+                    job_description,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+            },
+        )
 
-    assert response.status_code == 501
+    assert response.status_code == 200
 
-    data = response.json()
+    body = response.json()
+    assert "data" in body
 
-    assert data["code"] == "ANALYSIS_NOT_IMPLEMENTED"
-    assert data["request_id"]
+    data = body["data"]
+    assert data["analysis_id"]
+    assert data["schema_version"] == "1.0.0"
+    assert data["analysis_mode"] == "resume_jd"
+    assert data["status"] == "completed"
+
+    assert data["input"]["resume_document_id"]
+    assert data["input"]["job_description_document_id"]
+
+    assert data["resume_profile"] is not None
+    assert data["job_profile"] is not None
+    assert data["matching"] is not None
+    assert data["matching"]["skill_matches"]
+    assert data["matching"]["requirement_alignments"]
+
+    assert data["scoring"] is None
+    assert data["xai"] is None

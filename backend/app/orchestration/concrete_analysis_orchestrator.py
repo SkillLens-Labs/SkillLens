@@ -5,10 +5,17 @@ from uuid import uuid4
 
 from backend.app.analysis.ats_intelligence import ATSIntelligenceAnalyzer
 from backend.app.analysis.esco_mapper import ESCOMapper
+from backend.app.analysis.jd_profile_builder import JDProfileBuilder
+from backend.app.analysis.jd_requirement_extractor import JDRequirementExtractor
+from backend.app.analysis.jd_skill_extractor import JDSkillExtractor
+from backend.app.analysis.jd_skill_normalizer import JDSkillNormalizer
+from backend.app.analysis.jd_structure import JDStructureInterpreter
 from backend.app.analysis.resume_profile_builder import ResumeProfileBuilder
+from backend.app.analysis.requirement_aligner import RequirementAligner
 from backend.app.analysis.resume_quality import ResumeQualityAnalyzer
 from backend.app.analysis.resume_structure import ResumeStructureInterpreter
 from backend.app.analysis.skill_extractor import SkillExtractor
+from backend.app.analysis.skill_matcher import SkillMatcher
 from backend.app.analysis.skill_normalizer import SkillNormalizer
 from backend.app.domain.analysis import (
     AnalysisInput,
@@ -19,6 +26,7 @@ from backend.app.domain.analysis import (
 )
 from backend.app.infrastructure.parsers.document_processor import DocumentProcessor
 from backend.app.schemas.requests import (
+    JobDescriptionDocumentInput,
     ResumeAnalysisRequest,
     ResumeDocumentInput,
     ResumeJDAnalysisRequest,
@@ -27,9 +35,9 @@ from backend.app.orchestration.analysis_orchestrator import AnalysisOrchestrator
 
 
 class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
-    """Concrete Phase 4 orchestrator for resume-only analysis."""
+    """Concrete Phase 5 orchestrator for resume and job-description analysis."""
 
-    ENGINE_VERSION = "phase4-orchestrator-v1"
+    ENGINE_VERSION = "phase5-orchestrator-v1"
 
     def __init__(
         self,
@@ -42,6 +50,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         profile_builder: ResumeProfileBuilder | None = None,
         quality_analyzer: ResumeQualityAnalyzer | None = None,
         ats_analyzer: ATSIntelligenceAnalyzer | None = None,
+        jd_structure_interpreter: JDStructureInterpreter | None = None,
+        jd_requirement_extractor: JDRequirementExtractor | None = None,
+        jd_skill_extractor: JDSkillExtractor | None = None,
+        jd_skill_normalizer: JDSkillNormalizer | None = None,
+        jd_profile_builder: JDProfileBuilder | None = None,
+        skill_matcher: SkillMatcher | None = None,
+        requirement_aligner: RequirementAligner | None = None,
     ) -> None:
         self._document_processor = document_processor or DocumentProcessor()
         self._structure_interpreter = (
@@ -53,6 +68,17 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         self._profile_builder = profile_builder or ResumeProfileBuilder()
         self._quality_analyzer = quality_analyzer or ResumeQualityAnalyzer()
         self._ats_analyzer = ats_analyzer or ATSIntelligenceAnalyzer()
+        self._jd_structure_interpreter = (
+            jd_structure_interpreter or JDStructureInterpreter()
+        )
+        self._jd_requirement_extractor = (
+            jd_requirement_extractor or JDRequirementExtractor()
+        )
+        self._jd_skill_extractor = jd_skill_extractor or JDSkillExtractor()
+        self._jd_skill_normalizer = jd_skill_normalizer or JDSkillNormalizer()
+        self._jd_profile_builder = jd_profile_builder or JDProfileBuilder()
+        self._skill_matcher = skill_matcher or SkillMatcher()
+        self._requirement_aligner = requirement_aligner or RequirementAligner()
         self._analyses: dict[str, AnalysisResult] = {}
 
     def analyze_resume(
@@ -142,12 +168,118 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
 
     def analyze_resume_jd(
         self,
+        resume_input: ResumeDocumentInput,
+        job_description_input: JobDescriptionDocumentInput,
         request: ResumeJDAnalysisRequest,
     ) -> AnalysisResult:
-        """JD analysis is intentionally outside the Phase 4 implementation."""
-        raise NotImplementedError(
-            "Resume + job-description analysis is not implemented in Phase 4."
+        """Run the Phase 5 resume + job-description analysis pipeline."""
+        started = perf_counter()
+
+        resume_document = self._document_processor.process(
+            filename=resume_input.filename,
+            content=resume_input.content,
+            content_type=resume_input.content_type,
         )
+        structured_resume = self._structure_interpreter.interpret(resume_document)
+        resume_extraction = self._skill_extractor.extract(structured_resume)
+        resume_normalized_skills = self._skill_normalizer.normalize_many(
+            resume_extraction.mentions
+        )
+        resume_esco_results = self._esco_mapper.map_many(
+            resume_normalized_skills
+        )
+        resume_profile = self._profile_builder.build(
+            structured_resume,
+            resume_normalized_skills,
+            resume_esco_results,
+        )
+
+        job_document = self._document_processor.process(
+            filename=job_description_input.filename,
+            content=job_description_input.content,
+            content_type=job_description_input.content_type,
+        )
+        structured_job = self._jd_structure_interpreter.interpret(job_document)
+        requirements = tuple(
+            self._jd_requirement_extractor.extract(structured_job)
+        )
+        jd_extraction = self._jd_skill_extractor.extract(structured_job)
+        jd_normalized_skills = self._jd_skill_normalizer.normalize_many(
+            jd_extraction.mentions
+        )
+        jd_esco_results = self._esco_mapper.map_many(jd_normalized_skills)
+        jd_build = self._jd_profile_builder.build_with_skills(
+            structured_job,
+            requirements,
+            jd_normalized_skills,
+            jd_esco_results,
+        )
+
+        matching = self._skill_matcher.match(
+            resume_profile.skills,
+            jd_build.skills,
+            resume_esco=resume_esco_results,
+            job_esco=jd_esco_results,
+        )
+        requirement_alignments = self._requirement_aligner.align(
+            requirements,
+            matching.skill_matches,
+            resume_profile.skills,
+            jd_build.skills,
+            structured_resume,
+        )
+        matching = matching.model_copy(
+            update={
+                "requirement_alignments": requirement_alignments,
+            }
+        )
+
+        processing_time_ms = max(
+            0,
+            round((perf_counter() - started) * 1000),
+        )
+
+        analysis_id = str(uuid4())
+        result = AnalysisResult(
+            analysis_id=analysis_id,
+            analysis_mode=AnalysisMode.RESUME_JD,
+            status=AnalysisStatus.COMPLETED,
+            input=AnalysisInput(
+                resume_document_id=resume_document.document_id,
+                job_description_document_id=job_document.document_id,
+            ),
+            resume_profile=resume_profile,
+            job_profile=jd_build.profile,
+            matching=matching,
+            metadata=AnalysisMetadata(
+                engine_versions={
+                    "orchestrator": self.ENGINE_VERSION,
+                    "profile_builder": self._profile_builder.BUILDER_VERSION,
+                    "jd_profile_builder": self._jd_profile_builder.BUILDER_VERSION,
+                    "skill_matcher": self._skill_matcher.ENGINE_VERSION,
+                    "requirement_aligner": self._requirement_aligner.ENGINE_VERSION,
+                },
+                processing_time_ms=processing_time_ms,
+                warnings=(),
+                extra={
+                    "source": (
+                        request.client_metadata.source
+                        if request.client_metadata
+                        else None
+                    ),
+                    "session_id": (
+                        request.client_metadata.session_id
+                        if request.client_metadata
+                        else None
+                    ),
+                    "job_requirement_count": len(requirements),
+                    "job_skill_count": len(jd_build.skills),
+                },
+            ),
+        )
+
+        self._analyses[analysis_id] = result
+        return result
 
     def get_analysis(
         self,

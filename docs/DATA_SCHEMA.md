@@ -1798,3 +1798,214 @@ The complete Phase 4 implementation history is documented in:
 `docs/PHASE_4.md`
 
 Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.
+
+PHASE 5 --- COMPLETE & FROZEN ✅
+=============================
+
+Phase 5 of **SkillLens --- XAI-Driven Semantic Skill Gap Analysis using Transformer-Based Language Models** has been fully **implemented, integrated, tested, verified, documented, committed, and frozen**.
+
+Phase 5 introduced the complete **JD Intelligence & Resume--JD Matching** layer, including:
+
+-   Job Description document processing
+
+-   JD structure interpretation
+
+-   JD requirement extraction
+
+-   Required vs Preferred classification
+
+-   Skill / Experience / Education / Certification requirements
+
+-   JD skill extraction
+
+-   Reuse of the existing SkillNormalizer
+
+-   Reuse of the existing ESCOMapper
+
+-   JobProfile construction
+
+-   Exact skill matching
+
+-   Semantic skill matching using `all-MiniLM-L6-v2`
+
+-   Cosine similarity
+
+-   Match relationship classification
+
+-   Requirement alignment
+
+-   Evidence and confidence preservation
+
+-   MatchingResult integration
+
+-   AnalysisResult integration
+
+-   Resume--JD orchestration
+
+-   `POST /api/v1/analyses/resume-jd` API integration
+
+-   OpenAPI verification
+
+-   Resume-only backward-compatibility verification
+
+-   Dedicated Phase 5 unit/API tests
+
+-   Full regression testing
+
+-   Compilation verification
+
+-   Git diff verification
+
+Final verification:
+
+`245 tests passed, 7 dependency-level warnings`
+
+Git commit:
+
+`2045b40 Complete Phase 5 JD intelligence and resume-JD matching`
+
+Full commit:
+
+`2045b408a1fdfcc02edb0408dcf1d2a0aa4fc02e`
+
+Working tree is clean.
+
+### Important Phase Boundary
+
+Phase 5 intentionally stops at structured Resume--JD matching evidence.
+
+Final candidate-job scoring, skill-gap scoring, and XAI are **NOT part of Phase 5** and remain reserved for **Phase 6 --- Scoring & XAI**.
+
+### Documentation
+
+A dedicated and comprehensive Phase 5 document has been created:
+
+`docs/PHASE_5.md`
+
+This file contains the **complete Phase 5 implementation history, architecture, components, data flow, API integration, semantic matching, requirement alignment, tests, verification, and freeze status**.
+
+Only the relevant central documentation files were updated with the necessary current-state information. The complete Phase 5 details should **not be reconstructed from the older documentation**.
+
+**For all new/current Phase 5 information, implementation details, verification evidence, and decisions, refer to:**
+
+`docs/PHASE_5.md`
+
+Phase 5 is officially **COMPLETE & FROZEN 🔒**
+
+Next phase:
+
+**PHASE 6 --- SCORING & XAI**
+
+Phase 6 --- Scoring, Gap and XAI Schema Extensions
+------------------------------------------------
+
+**Status: COMPLETE / FROZEN**
+
+Phase 6 extends the canonical analytical domain with:
+
+```
+SkillGap
+SkillAnalysis
+DimensionScore
+ScoreAdjustment
+ScoreContribution
+ScoringResult
+
+```
+
+The existing XAI domain contract is reused:
+
+```
+SkillExplanation
+EvidenceMapEntry
+XAIResult
+
+```
+
+### SkillGap
+
+A `SkillGap` is requirement-linked and preserves:
+
+```
+requirement_id
+requirement_type
+target_skill_id
+target_skill_name
+match_status
+gap_type
+similarity
+rationale
+evidence
+confidence
+
+```
+
+### ScoringResult
+
+`ScoringResult` contains:
+
+```
+overall_score
+skill_score
+required_skill_score
+preferred_skill_score
+experience_score
+education_score
+domain_score
+dimension_scores
+weights
+contributions
+penalties
+bonuses
+confidence
+
+```
+
+### ScoreContribution
+
+A `ScoreContribution` contains:
+
+```
+contribution_id
+dimension
+source_type
+source_id
+score
+weight
+contribution
+rationale
+requirement_type
+
+```
+
+### Scale
+
+Internal scoring:
+
+```
+0.0 - 1.0
+
+```
+
+Public scoring:
+
+```
+0.0 - 100.0
+
+```
+
+### Design Rules
+
+-   UNKNOWN is distinct from UNMATCHED.
+
+-   Similarity is distinct from confidence.
+
+-   Evidence and confidence are preserved.
+
+-   Required and preferred requirements remain distinct.
+
+-   XAI explains existing results rather than redefining them.
+
+The complete Phase 6 schema changes are documented in:
+
+`docs/PHASE_6.md`

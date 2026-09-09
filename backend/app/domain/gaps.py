@@ -5,13 +5,27 @@ from backend.app.domain.evidence import Evidence
 
 
 class SkillGap(BaseModel):
-    """Canonical representation of an identified skill gap."""
+    """Canonical representation of a requirement-linked skill gap."""
 
     gap_id: str
+    requirement_id: str
+    requirement_type: str
     target_skill_id: str
     target_skill_name: str
+
+    # Phase 5 alignment status preserved as the authoritative classification.
+    # Expected values: matched, partial, unmatched, unknown.
+    match_status: str
+
+    # Gap classification is only populated for non-matched outcomes.
+    # Expected values: partial, unmatched, unknown.
     gap_type: str
+
     severity: str | None = None
+
+    # Existing Phase 5 matching strength is preserved separately from confidence.
+    similarity: float | None = Field(default=None, ge=0.0, le=1.0)
+
     rationale: str | None = None
     evidence: list[Evidence] = Field(default_factory=list)
     confidence: Confidence | None = None

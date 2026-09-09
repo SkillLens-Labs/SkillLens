@@ -944,3 +944,177 @@ The complete Phase 4 implementation history is documented in:
 `docs/PHASE_4.md`
 
 Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.
+
+PHASE 5 --- COMPLETE & FROZEN ✅
+=============================
+
+Phase 5 of **SkillLens --- XAI-Driven Semantic Skill Gap Analysis using Transformer-Based Language Models** has been fully **implemented, integrated, tested, verified, documented, committed, and frozen**.
+
+Phase 5 introduced the complete **JD Intelligence & Resume--JD Matching** layer, including:
+
+-   Job Description document processing
+
+-   JD structure interpretation
+
+-   JD requirement extraction
+
+-   Required vs Preferred classification
+
+-   Skill / Experience / Education / Certification requirements
+
+-   JD skill extraction
+
+-   Reuse of the existing SkillNormalizer
+
+-   Reuse of the existing ESCOMapper
+
+-   JobProfile construction
+
+-   Exact skill matching
+
+-   Semantic skill matching using `all-MiniLM-L6-v2`
+
+-   Cosine similarity
+
+-   Match relationship classification
+
+-   Requirement alignment
+
+-   Evidence and confidence preservation
+
+-   MatchingResult integration
+
+-   AnalysisResult integration
+
+-   Resume--JD orchestration
+
+-   `POST /api/v1/analyses/resume-jd` API integration
+
+-   OpenAPI verification
+
+-   Resume-only backward-compatibility verification
+
+-   Dedicated Phase 5 unit/API tests
+
+-   Full regression testing
+
+-   Compilation verification
+
+-   Git diff verification
+
+Final verification:
+
+`245 tests passed, 7 dependency-level warnings`
+
+Git commit:
+
+`2045b40 Complete Phase 5 JD intelligence and resume-JD matching`
+
+Full commit:
+
+`2045b408a1fdfcc02edb0408dcf1d2a0aa4fc02e`
+
+Working tree is clean.
+
+### Important Phase Boundary
+
+Phase 5 intentionally stops at structured Resume--JD matching evidence.
+
+Final candidate-job scoring, skill-gap scoring, and XAI are **NOT part of Phase 5** and remain reserved for **Phase 6 --- Scoring & XAI**.
+
+### Documentation
+
+A dedicated and comprehensive Phase 5 document has been created:
+
+`docs/PHASE_5.md`
+
+This file contains the **complete Phase 5 implementation history, architecture, components, data flow, API integration, semantic matching, requirement alignment, tests, verification, and freeze status**.
+
+Only the relevant central documentation files were updated with the necessary current-state information. The complete Phase 5 details should **not be reconstructed from the older documentation**.
+
+**For all new/current Phase 5 information, implementation details, verification evidence, and decisions, refer to:**
+
+`docs/PHASE_5.md`
+
+Phase 5 is officially **COMPLETE & FROZEN 🔒**
+
+Next phase:
+
+**PHASE 6 --- SCORING & XAI**
+
+Current Phase
+-------------
+
+**Phase 6 --- Final Candidate-Job Scoring, Skill Gap Analysis & XAI**
+
+**Status: COMPLETE / FROZEN**
+
+Phase 6 has been fully implemented, integrated, tested, verified, and documented.
+
+### Current Capabilities
+
+The current backend supports:
+
+-   Resume intelligence
+
+-   Job Description intelligence
+
+-   Resume--JD semantic matching
+
+-   Requirement alignment
+
+-   Deterministic candidate-job scoring
+
+-   Requirement-linked skill-gap analysis
+
+-   Required/preferred scoring
+
+-   Evidence-aware UNKNOWN handling
+
+-   Transparent score contributions
+
+-   Deterministic XAI
+
+-   Evidence and confidence preservation
+
+-   Resume-only compatibility
+
+-   Resume + JD analysis integration
+
+### Phase 6 Verification
+
+```
+Phase 6 targeted tests:
+64 passed, 7 warnings
+
+Full backend regression:
+281 passed, 7 warnings
+
+Failures:
+0
+
+```
+
+Source validation:
+
+```
+git diff --check
+PASS
+
+```
+
+### Phase 6 Documentation
+
+The complete Phase 6 implementation record is maintained separately in:
+
+`docs/PHASE_6.md`
+
+That document contains the detailed implementation, architecture, contracts, scoring policy, XAI behavior, test coverage, verification evidence, scope exclusions, and completion criteria.
+
+### Project State
+
+Phase 6 is complete and frozen.
+
+No additional Phase 6 feature expansion is planned unless a defect or contract violation is discovered.
+
+Future development proceeds under the next explicitly approved phase.

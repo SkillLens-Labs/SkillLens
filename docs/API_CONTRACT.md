@@ -1713,3 +1713,164 @@ Phase 5 matching includes:
 Final candidate-job scoring and XAI are intentionally excluded from Phase 5 and are owned by Phase 6.
 
 OpenAPI verification passed.
+
+Phase 6 --- Final Candidate-Job Scoring, Skill Gap Analysis & XAI
+---------------------------------------------------------------
+
+**Status: COMPLETE / FROZEN**
+
+Phase 6 extends the Resume + JD analysis response with populated:
+
+```
+skill_analysis
+scoring
+xai
+
+```
+
+### Resume + JD Response
+
+For a valid Resume + JD analysis:
+
+```
+matching        -> populated
+skill_analysis  -> populated
+scoring         -> populated
+xai             -> populated
+
+```
+
+The scoring response includes:
+
+```
+overall_score
+skill_score
+required_skill_score
+preferred_skill_score
+experience_score
+education_score
+domain_score
+dimension_scores
+weights
+contributions
+confidence
+
+```
+
+The public score range is:
+
+```
+0.0 - 100.0
+
+```
+
+Internal calculations use:
+
+```
+0.0 - 1.0
+
+```
+
+### Scoring Policy
+
+Canonical dimension weights:
+
+```
+Required Skills  = 0.50
+Preferred Skills = 0.15
+Experience       = 0.15
+Education        = 0.10
+Domain           = 0.10
+Total            = 1.00
+
+```
+
+Requirement alignment values:
+
+```
+MATCHED     = 1.0
+PARTIAL     = 0.5
+UNMATCHED   = 0.0
+UNKNOWN     = excluded
+
+```
+
+UNKNOWN does not represent confirmed absence and is excluded from the scoring denominator.
+
+Unavailable dimensions are excluded and the remaining dimension weights are renormalized.
+
+### Score Contributions
+
+Each contribution provides:
+
+```
+contribution_id
+dimension
+source_type
+source_id
+score
+weight
+contribution
+rationale
+requirement_type
+
+```
+
+This provides transparent decomposition of the deterministic score.
+
+### XAI
+
+XAI explains existing analytical results.
+
+It does not independently recalculate official scoring or perform new matching.
+
+The XAI response supports:
+
+-   overall explanation
+
+-   score explanation
+
+-   strengths
+
+-   weaknesses
+
+-   matched skill explanations
+
+-   partial match explanations
+
+-   missing skill explanations
+
+-   evidence mapping
+
+-   confidence
+
+### Resume-Only Compatibility
+
+Resume-only analysis remains compatible:
+
+```
+skill_analysis -> existing empty-compatible structure
+scoring        -> null
+xai            -> null
+
+```
+
+### Verification
+
+Phase 6 API verification passed:
+
+```
+14 passed, 7 warnings
+
+```
+
+Full backend regression:
+
+```
+281 passed, 7 warnings
+
+```
+
+The complete Phase 6 API contract, response behavior, scoring rules, and XAI contract are documented in:
+
+`docs/PHASE_6.md`

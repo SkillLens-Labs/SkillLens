@@ -1,25 +1,40 @@
+## Phase 6 — Final Candidate-Job Scoring, Skill Gap Analysis & XAI — COMPLETED
 
-## Phase 5 — JD Intelligence & Resume–JD Matching — COMPLETED
-
-Phase 5 has been fully implemented, integrated, tested, documented, and frozen.
+Phase 6 has been fully implemented, integrated, tested, documented, verified, and frozen.
 
 Completed:
-- JD document processing and structure interpretation
-- JD requirement extraction
-- Required/preferred classification
-- JD skill extraction
-- Existing skill normalization and ESCO mapping reuse
-- JobProfile construction
-- Exact and semantic Resume–JD skill matching
-- Requirement alignment
+
+- Deterministic candidate-job scoring
+- Explicit required/preferred skill weighting
+- Experience, education, and domain scoring
+- Explicit UNKNOWN handling
+- Available-dimension weight renormalization
+- Requirement-linked skill-gap analysis
+- Matched / partial / unmatched / unknown preservation
 - Evidence and confidence preservation
-- MatchingResult integration
-- Resume–JD analysis API integration
-- OpenAPI verification
-- Resume-only regression verification
-- Full regression verification
+- Deterministic score contribution decomposition
+- Deterministic XAI
+- Score explanations with contribution rationale
+- Matched, partial, and missing skill explanations
+- Evidence mapping
+- Similarity/confidence separation
+- Resume-only regression compatibility
+- Resume + JD canonical AnalysisResult integration
+- Phase 6 engine versioning
+- API integration verification
+- Dedicated Phase 6 tests
+- Full backend regression verification
 
-Final test status: **245 passed, 7 warnings**
+Final Phase 6 targeted verification:
 
-Phase 6 is now the next development phase and owns final candidate-job scoring and XAI.
+**64 passed, 7 warnings**
 
+Final full backend regression:
+
+**281 passed, 7 warnings**
+
+0 test failures.
+
+The warnings are dependency/deprecation warnings from Starlette/httpx, AnyIO, and SWIG dependencies.
+
+Phase 6 is complete and frozen. Future development should proceed under the next explicitly approved phase.

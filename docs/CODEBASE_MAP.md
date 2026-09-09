@@ -1573,3 +1573,189 @@ The complete Phase 4 implementation history is documented in:
 `docs/PHASE_4.md`
 
 Phase 4 is now considered the frozen Resume Quality & ATS Intelligence baseline for the next project phase.
+
+PHASE 5 --- COMPLETE & FROZEN ✅
+=============================
+
+Phase 5 of **SkillLens --- XAI-Driven Semantic Skill Gap Analysis using Transformer-Based Language Models** has been fully **implemented, integrated, tested, verified, documented, committed, and frozen**.
+
+Phase 5 introduced the complete **JD Intelligence & Resume--JD Matching** layer, including:
+
+-   Job Description document processing
+
+-   JD structure interpretation
+
+-   JD requirement extraction
+
+-   Required vs Preferred classification
+
+-   Skill / Experience / Education / Certification requirements
+
+-   JD skill extraction
+
+-   Reuse of the existing SkillNormalizer
+
+-   Reuse of the existing ESCOMapper
+
+-   JobProfile construction
+
+-   Exact skill matching
+
+-   Semantic skill matching using `all-MiniLM-L6-v2`
+
+-   Cosine similarity
+
+-   Match relationship classification
+
+-   Requirement alignment
+
+-   Evidence and confidence preservation
+
+-   MatchingResult integration
+
+-   AnalysisResult integration
+
+-   Resume--JD orchestration
+
+-   `POST /api/v1/analyses/resume-jd` API integration
+
+-   OpenAPI verification
+
+-   Resume-only backward-compatibility verification
+
+-   Dedicated Phase 5 unit/API tests
+
+-   Full regression testing
+
+-   Compilation verification
+
+-   Git diff verification
+
+Final verification:
+
+`245 tests passed, 7 dependency-level warnings`
+
+Git commit:
+
+`2045b40 Complete Phase 5 JD intelligence and resume-JD matching`
+
+Full commit:
+
+`2045b408a1fdfcc02edb0408dcf1d2a0aa4fc02e`
+
+Working tree is clean.
+
+### Important Phase Boundary
+
+Phase 5 intentionally stops at structured Resume--JD matching evidence.
+
+Final candidate-job scoring, skill-gap scoring, and XAI are **NOT part of Phase 5** and remain reserved for **Phase 6 --- Scoring & XAI**.
+
+### Documentation
+
+A dedicated and comprehensive Phase 5 document has been created:
+
+`docs/PHASE_5.md`
+
+This file contains the **complete Phase 5 implementation history, architecture, components, data flow, API integration, semantic matching, requirement alignment, tests, verification, and freeze status**.
+
+Only the relevant central documentation files were updated with the necessary current-state information. The complete Phase 5 details should **not be reconstructed from the older documentation**.
+
+**For all new/current Phase 5 information, implementation details, verification evidence, and decisions, refer to:**
+
+`docs/PHASE_5.md`
+
+Phase 5 is officially **COMPLETE & FROZEN 🔒**
+
+Next phase:
+
+**PHASE 6 --- SCORING & XAI**
+
+Phase 6 --- New Components
+------------------------
+
+**Status: COMPLETE / FROZEN**
+
+### Analysis Engines
+
+```
+backend/app/analysis/gaps.py
+
+```
+
+`GapAnalyzer`
+
+Responsible for requirement-linked skill-gap analysis using existing Phase 5 matching and alignment results.
+
+```
+backend/app/analysis/scoring.py
+
+```
+
+`ScoringAnalyzer`
+
+Responsible for deterministic candidate-job scoring, dimension weighting, UNKNOWN handling, and score contribution decomposition.
+
+```
+backend/app/analysis/xai.py
+
+```
+
+`XAIAnalyzer`
+
+Responsible for deterministic explanations of existing matching, gap, and scoring results.
+
+### Modified Domain Contracts
+
+```
+backend/app/domain/gaps.py
+
+```
+
+Extended `SkillGap` and `SkillAnalysis`.
+
+```
+backend/app/domain/scoring.py
+
+```
+
+Added score contribution and extended scoring result contracts.
+
+### Modified Orchestration
+
+```
+backend/app/orchestration/concrete_analysis_orchestrator.py
+
+```
+
+Integrates:
+
+```
+GapAnalyzer
+ScoringAnalyzer
+XAIAnalyzer
+
+```
+
+into the existing Resume + JD workflow.
+
+### Phase 6 Tests
+
+```
+backend/tests/unit/test_gaps.py
+backend/tests/unit/test_scoring.py
+backend/tests/unit/test_xai.py
+
+```
+
+Phase 6 integration coverage also exists in:
+
+```
+backend/tests/unit/test_analysis_orchestrator.py
+backend/tests/api/test_analysis_api.py
+
+```
+
+Detailed component behavior is documented in:
+
+`docs/PHASE_6.md`

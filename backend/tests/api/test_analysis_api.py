@@ -55,6 +55,11 @@ def test_resume_analysis_endpoint_returns_canonical_result() -> None:
     assert data["resume_quality"] is not None
     assert data["ats_intelligence"] is not None
     assert data["job_profile"] is None
+    assert data["skill_analysis"] is not None
+    assert data["skill_analysis"]["extracted_skills"] == []
+    assert data["skill_analysis"]["matched_skills"] == []
+    assert isinstance(data["skill_analysis"]["gaps"], list)
+
     assert data["scoring"] is None
     assert data["xai"] is None
     assert data["career_intelligence"] is None
@@ -354,5 +359,16 @@ def test_resume_jd_analysis_endpoint_returns_matching_result() -> None:
     assert data["matching"]["skill_matches"]
     assert data["matching"]["requirement_alignments"]
 
-    assert data["scoring"] is None
-    assert data["xai"] is None
+    assert data["skill_analysis"] is not None
+    assert data["skill_analysis"]["extracted_skills"]
+    assert data["skill_analysis"]["matched_skills"]
+    assert isinstance(data["skill_analysis"]["gaps"], list)
+
+    assert data["scoring"] is not None
+    assert 0.0 <= data["scoring"]["overall_score"] <= 100.0
+    assert data["scoring"]["dimension_scores"]
+    assert data["scoring"]["contributions"]
+
+    assert data["xai"] is not None
+    assert data["xai"]["overall_explanation"]
+    assert data["xai"]["score_explanation"]

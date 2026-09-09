@@ -4,6 +4,9 @@ from time import perf_counter
 from uuid import uuid4
 
 from backend.app.analysis.ats_intelligence import ATSIntelligenceAnalyzer
+from backend.app.analysis.gaps import GapAnalyzer
+from backend.app.analysis.scoring import ScoringAnalyzer
+from backend.app.analysis.xai import XAIAnalyzer
 from backend.app.analysis.esco_mapper import ESCOMapper
 from backend.app.analysis.jd_profile_builder import JDProfileBuilder
 from backend.app.analysis.jd_requirement_extractor import JDRequirementExtractor
@@ -35,9 +38,9 @@ from backend.app.orchestration.analysis_orchestrator import AnalysisOrchestrator
 
 
 class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
-    """Concrete Phase 5 orchestrator for resume and job-description analysis."""
+    """Concrete Phase 6 orchestrator for resume and job-description analysis."""
 
-    ENGINE_VERSION = "phase5-orchestrator-v1"
+    ENGINE_VERSION = "phase6-orchestrator-v1"
 
     def __init__(
         self,
@@ -57,6 +60,9 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         jd_profile_builder: JDProfileBuilder | None = None,
         skill_matcher: SkillMatcher | None = None,
         requirement_aligner: RequirementAligner | None = None,
+        gap_analyzer: GapAnalyzer | None = None,
+        scoring_analyzer: ScoringAnalyzer | None = None,
+        xai_analyzer: XAIAnalyzer | None = None,
     ) -> None:
         self._document_processor = document_processor or DocumentProcessor()
         self._structure_interpreter = (
@@ -79,6 +85,9 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         self._jd_profile_builder = jd_profile_builder or JDProfileBuilder()
         self._skill_matcher = skill_matcher or SkillMatcher()
         self._requirement_aligner = requirement_aligner or RequirementAligner()
+        self._gap_analyzer = gap_analyzer or GapAnalyzer()
+        self._scoring_analyzer = scoring_analyzer or ScoringAnalyzer()
+        self._xai_analyzer = xai_analyzer or XAIAnalyzer()
         self._analyses: dict[str, AnalysisResult] = {}
 
     def analyze_resume(
@@ -114,6 +123,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             structured_resume,
             resume_profile,
         )
+
 
         processing_time_ms = max(
             0,
@@ -234,6 +244,29 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             }
         )
 
+        skill_analysis = self._gap_analyzer.analyze(
+            requirements=requirements,
+            matching=matching,
+            resume_skills=resume_profile.skills,
+            job_skills=jd_build.skills,
+        )
+
+        scoring = self._scoring_analyzer.score(
+            job_profile=jd_build.profile,
+            requirements=requirements,
+            matching=matching,
+            resume_skills=resume_profile.skills,
+            job_skills=jd_build.skills,
+        )
+
+        xai = self._xai_analyzer.explain(
+            scoring=scoring,
+            skill_analysis=skill_analysis,
+            matching=matching,
+            resume_skills=resume_profile.skills,
+            job_skills=jd_build.skills,
+        )
+
         processing_time_ms = max(
             0,
             round((perf_counter() - started) * 1000),
@@ -251,6 +284,9 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_profile=resume_profile,
             job_profile=jd_build.profile,
             matching=matching,
+            skill_analysis=skill_analysis,
+            scoring=scoring,
+            xai=xai,
             metadata=AnalysisMetadata(
                 engine_versions={
                     "orchestrator": self.ENGINE_VERSION,
@@ -258,6 +294,9 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     "jd_profile_builder": self._jd_profile_builder.BUILDER_VERSION,
                     "skill_matcher": self._skill_matcher.ENGINE_VERSION,
                     "requirement_aligner": self._requirement_aligner.ENGINE_VERSION,
+                    "gap_analyzer": self._gap_analyzer.ENGINE_VERSION,
+                    "scoring_analyzer": self._scoring_analyzer.ENGINE_VERSION,
+                    "xai_analyzer": self._xai_analyzer.ENGINE_VERSION,
                 },
                 processing_time_ms=processing_time_ms,
                 warnings=(),

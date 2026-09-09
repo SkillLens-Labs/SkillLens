@@ -2264,3 +2264,132 @@ AnalysisResult
 Phase 5 does not introduce final candidate-job scoring or XAI. Those components remain reserved for Phase 6.
 
 Final verification: **245 tests passed, 7 warnings**.
+
+Phase 6 --- Final Candidate-Job Scoring, Skill Gap Analysis & XAI
+---------------------------------------------------------------
+
+**Status: COMPLETE / FROZEN**
+
+Phase 6 extends the existing Phase 5 Resume + Job Description architecture.
+
+The architectural flow is:
+
+```
+Resume
+   |
+   v
+Resume Profile
+   |
+   |
+Job Description
+   |
+   v
+Job Profile
+   |
+   +--> JD Requirements
+   +--> JD Skills
+             |
+             v
+        Skill Matching
+             |
+             v
+    Requirement Alignment
+             |
+       +-----+-----+
+       |           |
+       v           v
+  GapAnalyzer  ScoringAnalyzer
+       |           |
+       v           v
+ SkillAnalysis  ScoringResult
+       |           |
+       +-----+-----+
+             |
+             v
+        XAIAnalyzer
+             |
+             v
+       AnalysisResult
+
+```
+
+### Architectural Responsibilities
+
+`GapAnalyzer`:
+
+-   converts existing requirement-alignment results into requirement-linked skill gaps
+
+-   preserves status, requirement type, similarity, evidence, and confidence
+
+`ScoringAnalyzer`:
+
+-   calculates the deterministic candidate-job score
+
+-   applies explicit dimension weights
+
+-   handles UNKNOWN and unavailable dimensions
+
+-   produces transparent score contributions
+
+`XAIAnalyzer`:
+
+-   explains existing matching, gap, and scoring results
+
+-   uses deterministic explanation generation
+
+-   preserves evidence and confidence
+
+-   does not independently recalculate official scoring
+
+### Orchestration
+
+Phase 6 uses the existing:
+
+`ConcreteAnalysisOrchestrator`
+
+No second orchestrator was introduced.
+
+The execution order for Resume + JD analysis is:
+
+```
+Matching
+   ↓
+Requirement Alignment
+   ↓
+Gap Analysis
+   ↓
+Scoring
+   ↓
+XAI
+   ↓
+AnalysisResult
+
+```
+
+Resume-only analysis remains compatible and does not execute job-specific Phase 6 scoring/XAI.
+
+### Design Constraints
+
+Phase 6 preserves:
+
+-   one workflow orchestrator
+
+-   one authoritative matching engine
+
+-   one authoritative requirement alignment engine
+
+-   one authoritative scoring engine
+
+-   similarity separate from confidence
+
+-   UNKNOWN separate from UNMATCHED
+
+-   evidence preservation
+
+-   deterministic scoring
+
+-   deterministic explainability
+
+The complete Phase 6 architecture and implementation decisions are documented in:
+
+`docs/PHASE_6.md`

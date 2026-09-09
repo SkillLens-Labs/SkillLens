@@ -359,8 +359,19 @@ def test_resume_jd_analysis_runs_complete_phase5_pipeline() -> None:
         for alignment in result.matching.requirement_alignments
     )
 
-    assert result.scoring is None
-    assert result.xai is None
+    assert result.skill_analysis is not None
+    assert result.skill_analysis.extracted_skills
+    assert result.skill_analysis.matched_skills
+    assert isinstance(result.skill_analysis.gaps, list)
+
+    assert result.scoring is not None
+    assert 0.0 <= result.scoring.overall_score <= 100.0
+    assert result.scoring.dimension_scores
+    assert result.scoring.contributions
+
+    assert result.xai is not None
+    assert result.xai.overall_explanation
+    assert result.xai.score_explanation
 
     assert result.metadata.extra["job_requirement_count"] >= 2
     assert result.metadata.extra["job_skill_count"] >= 2

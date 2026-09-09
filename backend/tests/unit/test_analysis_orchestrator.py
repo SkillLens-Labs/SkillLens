@@ -400,3 +400,101 @@ def test_resume_jd_analysis_stores_result() -> None:
     )
 
     assert orchestrator.get_analysis(result.analysis_id) is result
+
+
+def test_resume_analysis_populates_career_intelligence() -> None:
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.career_intelligence is not None
+    assert result.career_intelligence.engine_version == (
+        "phase7-career-intelligence-v1"
+    )
+    assert result.career_intelligence.taxonomy_version == (
+        "career-taxonomy-v1"
+    )
+    assert result.metadata.engine_versions["career_intelligence"] == (
+        "phase7-career-intelligence-v1"
+    )
+
+
+def test_resume_analysis_can_disable_career_intelligence() -> None:
+    from backend.app.schemas.requests import AnalysisOptions
+
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(
+            options=AnalysisOptions(
+                include_career_intelligence=False,
+            )
+        ),
+    )
+
+    assert result.career_intelligence is None
+    assert "career_intelligence" not in result.metadata.engine_versions
+
+
+def test_resume_jd_analysis_populates_career_intelligence() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert result.career_intelligence is not None
+    assert result.career_intelligence.engine_version == (
+        "phase7-career-intelligence-v1"
+    )
+    assert result.scoring is not None
+    assert result.xai is not None
+
+
+def test_resume_jd_analysis_can_disable_career_intelligence() -> None:
+    from backend.app.schemas.requests import AnalysisOptions
+
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(
+            options=AnalysisOptions(
+                include_career_intelligence=False,
+            )
+        ),
+    )
+
+    assert result.career_intelligence is None
+    assert "career_intelligence" not in result.metadata.engine_versions
+    assert result.scoring is not None
+    assert result.xai is not None

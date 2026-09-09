@@ -4,6 +4,10 @@ from time import perf_counter
 from uuid import uuid4
 
 from backend.app.analysis.ats_intelligence import ATSIntelligenceAnalyzer
+from backend.app.analysis.career_intelligence import (
+    ENGINE_VERSION as CAREER_INTELLIGENCE_ENGINE_VERSION,
+    CareerIntelligenceAnalyzer,
+)
 from backend.app.analysis.gaps import GapAnalyzer
 from backend.app.analysis.scoring import ScoringAnalyzer
 from backend.app.analysis.xai import XAIAnalyzer
@@ -40,7 +44,7 @@ from backend.app.orchestration.analysis_orchestrator import AnalysisOrchestrator
 class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
     """Concrete Phase 6 orchestrator for resume and job-description analysis."""
 
-    ENGINE_VERSION = "phase6-orchestrator-v1"
+    ENGINE_VERSION = "phase7-orchestrator-v1"
 
     def __init__(
         self,
@@ -53,6 +57,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         profile_builder: ResumeProfileBuilder | None = None,
         quality_analyzer: ResumeQualityAnalyzer | None = None,
         ats_analyzer: ATSIntelligenceAnalyzer | None = None,
+        career_intelligence_analyzer: CareerIntelligenceAnalyzer | None = None,
         jd_structure_interpreter: JDStructureInterpreter | None = None,
         jd_requirement_extractor: JDRequirementExtractor | None = None,
         jd_skill_extractor: JDSkillExtractor | None = None,
@@ -74,6 +79,9 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         self._profile_builder = profile_builder or ResumeProfileBuilder()
         self._quality_analyzer = quality_analyzer or ResumeQualityAnalyzer()
         self._ats_analyzer = ats_analyzer or ATSIntelligenceAnalyzer()
+        self._career_intelligence_analyzer = (
+            career_intelligence_analyzer or CareerIntelligenceAnalyzer()
+        )
         self._jd_structure_interpreter = (
             jd_structure_interpreter or JDStructureInterpreter()
         )
@@ -125,6 +133,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         )
 
 
+        career_intelligence = None
+        if request.options.include_career_intelligence:
+            career_intelligence = self._career_intelligence_analyzer.analyze(
+                resume_profile=resume_profile,
+                structured_resume=structured_resume,
+            )
+
         processing_time_ms = max(
             0,
             round((perf_counter() - started) * 1000),
@@ -142,6 +157,11 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             "ats_intelligence": self._ats_analyzer.ENGINE_VERSION,
         }
 
+        if career_intelligence is not None:
+            engine_versions["career_intelligence"] = (
+                CAREER_INTELLIGENCE_ENGINE_VERSION
+            )
+
         analysis_id = str(uuid4())
 
         result = AnalysisResult(
@@ -154,6 +174,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_profile=resume_profile,
             resume_quality=resume_quality,
             ats_intelligence=ats_intelligence,
+            career_intelligence=career_intelligence,
             metadata=AnalysisMetadata(
                 engine_versions=engine_versions,
                 processing_time_ms=processing_time_ms,
@@ -203,6 +224,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_normalized_skills,
             resume_esco_results,
         )
+
+        career_intelligence = None
+        if request.options.include_career_intelligence:
+            career_intelligence = self._career_intelligence_analyzer.analyze(
+                resume_profile=resume_profile,
+                structured_resume=structured_resume,
+            )
 
         job_document = self._document_processor.process(
             filename=job_description_input.filename,
@@ -287,6 +315,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             skill_analysis=skill_analysis,
             scoring=scoring,
             xai=xai,
+            career_intelligence=career_intelligence,
             metadata=AnalysisMetadata(
                 engine_versions={
                     "orchestrator": self.ENGINE_VERSION,
@@ -297,6 +326,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     "gap_analyzer": self._gap_analyzer.ENGINE_VERSION,
                     "scoring_analyzer": self._scoring_analyzer.ENGINE_VERSION,
                     "xai_analyzer": self._xai_analyzer.ENGINE_VERSION,
+                    **(
+                        {
+                            "career_intelligence": CAREER_INTELLIGENCE_ENGINE_VERSION,
+                        }
+                        if career_intelligence is not None
+                        else {}
+                    ),
                 },
                 processing_time_ms=processing_time_ms,
                 warnings=(),

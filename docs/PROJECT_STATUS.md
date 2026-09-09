@@ -1118,3 +1118,70 @@ Phase 6 is complete and frozen.
 No additional Phase 6 feature expansion is planned unless a defect or contract violation is discovered.
 
 Future development proceeds under the next explicitly approved phase.
+
+PHASE 7 --- COMPLETION NOTICE
+===========================
+
+Phase 7 --- Career Intelligence
+-----------------------------
+
+Phase 7 has been fully implemented, integrated, tested, and verified.
+
+The phase introduces the deterministic Career Intelligence layer, including:
+
+-   Versioned career-role taxonomy
+
+-   Deterministic role matching and generalized role-fit scoring
+
+-   Evidence-backed role fit and confidence
+
+-   Seniority intelligence
+
+-   Domain classification
+
+-   Primary and secondary career directions
+
+-   Insufficient-evidence handling
+
+-   Transferable skills
+
+-   Strengths and evidence limitations
+
+-   Resume-only Career Intelligence
+
+-   Resume + Job Description compatibility
+
+-   Integration into the existing `ConcreteAnalysisOrchestrator`
+
+-   Existing API compatibility
+
+-   Comprehensive unit, orchestrator, API, and regression testing
+
+Phase 7 does **not** introduce a dedicated career endpoint or a second orchestrator.
+
+### Verification
+
+```
+44 targeted Career Intelligence + orchestrator tests passed
+14 API tests passed
+311 full regression tests passed
+OpenAPI 3.1.0 verified
+compileall passed
+git diff --check passed
+
+```
+
+The remaining warnings are existing dependency/deprecation warnings and do not represent Phase 7 functional failures.
+
+### Authoritative Phase 7 Documentation
+
+For the complete implementation details, architecture decisions, taxonomy, scoring methodology, evidence handling, seniority logic, API integration, test coverage, verification results, boundaries, and completion criteria, refer to:
+
+```
+docs/PHASE_7.md
+
+```
+
+`docs/PHASE_7.md` is the authoritative detailed record for Phase 7.
+
+This document should not duplicate the complete Phase 7 implementation history. Future development should refer to `docs/PHASE_7.md` for detailed Phase 7 information.

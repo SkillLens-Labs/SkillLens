@@ -62,7 +62,9 @@ def test_resume_analysis_endpoint_returns_canonical_result() -> None:
 
     assert data["scoring"] is None
     assert data["xai"] is None
-    assert data["career_intelligence"] is None
+    assert data["career_intelligence"] is not None
+    assert data["career_intelligence"]["taxonomy_version"] == "career-taxonomy-v1"
+    assert data["career_intelligence"]["engine_version"] == "phase7-career-intelligence-v1"
     assert data["recommendations"] == []
 
 

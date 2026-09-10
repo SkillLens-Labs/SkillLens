@@ -17,6 +17,14 @@ from backend.app.analysis.jd_requirement_extractor import JDRequirementExtractor
 from backend.app.analysis.jd_skill_extractor import JDSkillExtractor
 from backend.app.analysis.jd_skill_normalizer import JDSkillNormalizer
 from backend.app.analysis.jd_structure import JDStructureInterpreter
+from backend.app.domain.recommendations import Recommendation
+from backend.app.analysis.recommendation_intelligence import (
+    ENGINE_VERSION as RECOMMENDATION_INTELLIGENCE_ENGINE_VERSION,
+    RecommendationIntelligence,
+)
+from backend.app.analysis.recommendation_llm_enhancer import (
+    RecommendationLLMEnhancer,
+)
 from backend.app.analysis.resume_profile_builder import ResumeProfileBuilder
 from backend.app.analysis.requirement_aligner import RequirementAligner
 from backend.app.analysis.resume_quality import ResumeQualityAnalyzer
@@ -24,6 +32,7 @@ from backend.app.analysis.resume_structure import ResumeStructureInterpreter
 from backend.app.analysis.skill_extractor import SkillExtractor
 from backend.app.analysis.skill_matcher import SkillMatcher
 from backend.app.analysis.skill_normalizer import SkillNormalizer
+from backend.app.core.config import get_settings
 from backend.app.domain.analysis import (
     AnalysisInput,
     AnalysisMetadata,
@@ -31,6 +40,7 @@ from backend.app.domain.analysis import (
     AnalysisResult,
     AnalysisStatus,
 )
+from backend.app.infrastructure.llm import OllamaClient
 from backend.app.infrastructure.parsers.document_processor import DocumentProcessor
 from backend.app.schemas.requests import (
     JobDescriptionDocumentInput,
@@ -68,6 +78,8 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         gap_analyzer: GapAnalyzer | None = None,
         scoring_analyzer: ScoringAnalyzer | None = None,
         xai_analyzer: XAIAnalyzer | None = None,
+        recommendation_intelligence: RecommendationIntelligence | None = None,
+        recommendation_llm_enhancer: RecommendationLLMEnhancer | None = None,
     ) -> None:
         self._document_processor = document_processor or DocumentProcessor()
         self._structure_interpreter = (
@@ -96,7 +108,48 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         self._gap_analyzer = gap_analyzer or GapAnalyzer()
         self._scoring_analyzer = scoring_analyzer or ScoringAnalyzer()
         self._xai_analyzer = xai_analyzer or XAIAnalyzer()
+        self._recommendation_intelligence = (
+            recommendation_intelligence or RecommendationIntelligence()
+        )
+
+        if recommendation_llm_enhancer is not None:
+            self._recommendation_llm_enhancer = recommendation_llm_enhancer
+        else:
+            settings = get_settings()
+
+            if settings.ollama_enabled:
+                self._recommendation_llm_enhancer = RecommendationLLMEnhancer(
+                    OllamaClient(
+                        base_url=settings.ollama_base_url,
+                        model=settings.ollama_model,
+                        timeout_seconds=settings.ollama_timeout_seconds,
+                    )
+                )
+            else:
+                self._recommendation_llm_enhancer = None
+
         self._analyses: dict[str, AnalysisResult] = {}
+
+    def _enhance_recommendations(
+        self,
+        recommendations: list[Recommendation],
+    ) -> list[Recommendation]:
+        """
+        Optionally enhance recommendation wording using the configured
+        local LLM.
+
+        Recommendation selection, analytical classification, scoring,
+        priority, impact, confidence, evidence, and ranking remain
+        deterministic and authoritative.
+        """
+
+        if self._recommendation_llm_enhancer is None:
+            return recommendations
+
+        return [
+            self._recommendation_llm_enhancer.enhance(recommendation)
+            for recommendation in recommendations
+        ]
 
     def analyze_resume(
         self,
@@ -140,6 +193,14 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                 structured_resume=structured_resume,
             )
 
+        recommendations = []
+        if request.options.include_recommendations:
+            recommendations = self._recommendation_intelligence.generate(
+                resume_profile=resume_profile,
+                career_intelligence=career_intelligence,
+            )
+            recommendations = self._enhance_recommendations(recommendations)
+
         processing_time_ms = max(
             0,
             round((perf_counter() - started) * 1000),
@@ -162,6 +223,19 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                 CAREER_INTELLIGENCE_ENGINE_VERSION
             )
 
+        if request.options.include_recommendations:
+            engine_versions["recommendation_intelligence"] = (
+                RECOMMENDATION_INTELLIGENCE_ENGINE_VERSION
+            )
+
+        if (
+            request.options.include_recommendations
+            and self._recommendation_llm_enhancer is not None
+        ):
+            engine_versions["recommendation_llm_enhancer"] = (
+                self._recommendation_llm_enhancer.ENGINE_VERSION
+            )
+
         analysis_id = str(uuid4())
 
         result = AnalysisResult(
@@ -175,6 +249,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_quality=resume_quality,
             ats_intelligence=ats_intelligence,
             career_intelligence=career_intelligence,
+            recommendations=recommendations,
             metadata=AnalysisMetadata(
                 engine_versions=engine_versions,
                 processing_time_ms=processing_time_ms,
@@ -295,6 +370,20 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             job_skills=jd_build.skills,
         )
 
+        recommendations = []
+        if request.options.include_recommendations:
+            recommendations = self._recommendation_intelligence.generate(
+                resume_profile=resume_profile,
+                skill_analysis=skill_analysis,
+                career_intelligence=career_intelligence,
+                job_profile=jd_build.profile,
+                matching=matching,
+                scoring=scoring,
+                xai=xai,
+                requirements=requirements,
+            )
+            recommendations = self._enhance_recommendations(recommendations)
+
         processing_time_ms = max(
             0,
             round((perf_counter() - started) * 1000),
@@ -316,6 +405,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             scoring=scoring,
             xai=xai,
             career_intelligence=career_intelligence,
+            recommendations=recommendations,
             metadata=AnalysisMetadata(
                 engine_versions={
                     "orchestrator": self.ENGINE_VERSION,
@@ -331,6 +421,27 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                             "career_intelligence": CAREER_INTELLIGENCE_ENGINE_VERSION,
                         }
                         if career_intelligence is not None
+                        else {}
+                    ),
+                    **(
+                        {
+                            "recommendation_intelligence": (
+                                RECOMMENDATION_INTELLIGENCE_ENGINE_VERSION
+                            ),
+                        }
+                        if request.options.include_recommendations
+                        else {}
+                    ),
+                    **(
+                        {
+                            "recommendation_llm_enhancer": (
+                                self._recommendation_llm_enhancer.ENGINE_VERSION
+                            ),
+                        }
+                        if (
+                            request.options.include_recommendations
+                            and self._recommendation_llm_enhancer is not None
+                        )
                         else {}
                     ),
                 },

@@ -9,6 +9,14 @@ from backend.app.analysis.resume_structure import ResumeSectionType, ResumeStruc
 from backend.app.analysis.skill_extractor import SkillExtractor
 from backend.app.analysis.skill_normalizer import SkillNormalizer
 from backend.app.domain.analysis import AnalysisMode, AnalysisStatus
+from backend.app.domain.career import (
+    CareerDirection,
+    CareerIntelligence,
+    CareerSeniorityLevel,
+    RoleFit,
+)
+from backend.app.domain.confidence import Confidence, ConfidenceLevel
+from backend.app.domain.recommendations import RecommendationType
 from backend.app.infrastructure.parsers.models import (
     DocumentBlock,
     DocumentBlockType,
@@ -42,6 +50,67 @@ class StubDocumentProcessor:
         document_id: str | None = None,
     ) -> ParsedDocument:
         return self.document
+
+
+class StubCareerIntelligenceAnalyzer:
+    """Deterministic career analyzer for recommendation integration tests."""
+
+    ENGINE_VERSION = "phase7-career-intelligence-v1"
+
+    def analyze(self, *, resume_profile, structured_resume) -> CareerIntelligence:
+        confidence = Confidence(
+            score=0.95,
+            level=ConfidenceLevel.HIGH,
+            components={"test_fixture": 0.95},
+            rationale="Deterministic test fixture confidence.",
+        )
+
+        role_fit = RoleFit(
+            role="Data Engineer",
+            fit_score=85.0,
+            direction=CareerDirection.PRIMARY,
+            rationale="Strong deterministic fit for integration testing.",
+            confidence=confidence,
+        )
+
+        return CareerIntelligence(
+            inferred_profile="Data-focused software engineering profile",
+            experience_level=CareerSeniorityLevel.JUNIOR,
+            seniority_confidence=confidence,
+            seniority_rationale="Deterministic test fixture.",
+            primary_domains=["Data Engineering"],
+            strengths=["Python", "Data Analysis"],
+            limitations=[],
+            transferable_skills=["Python"],
+            career_directions=[],
+            potential_roles=["Data Engineer"],
+            role_fit=[role_fit],
+            career_signals=["Strong data engineering alignment"],
+            transition_analysis=None,
+            skill_priorities=[],
+            risks=[],
+            confidence=confidence,
+            taxonomy_version="career-taxonomy-v1",
+            engine_version=self.ENGINE_VERSION,
+        )
+
+
+class StubRecommendationLLMEnhancer:
+    """Deterministic LLM enhancer for orchestrator integration tests."""
+
+    ENGINE_VERSION = "recommendation-llm-enhancer-test-v1"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def enhance(self, recommendation):
+        self.calls += 1
+        return recommendation.model_copy(
+            update={
+                "title": f"LLM: {recommendation.title}",
+                "rationale": f"LLM: {recommendation.rationale}",
+            }
+        )
 
 
 def _block(
@@ -100,6 +169,44 @@ def _document() -> ParsedDocument:
         ),
     )
 
+
+def _document_without_summary() -> ParsedDocument:
+    return ParsedDocument(
+        document_id="orchestrator-resume-no-summary-001",
+        document_type=DocumentType.PDF,
+        blocks=(
+            _block("Raghuvir Anturkar", DocumentBlockType.PARAGRAPH, 0),
+            _block("Technical Skills", DocumentBlockType.HEADING, 1),
+            _block(
+                "Python, React, Docker, FastAPI",
+                DocumentBlockType.PARAGRAPH,
+                2,
+            ),
+            _block("Experience", DocumentBlockType.HEADING, 3),
+            _block(
+                "Software Developer — ABC Technologies — 2025-2026",
+                DocumentBlockType.PARAGRAPH,
+                4,
+            ),
+            _block(
+                "Built data analysis tools using Python and FastAPI.",
+                DocumentBlockType.PARAGRAPH,
+                5,
+            ),
+            _block("Education", DocumentBlockType.HEADING, 6),
+            _block(
+                "B.E. Computer Science Engineering",
+                DocumentBlockType.PARAGRAPH,
+                7,
+            ),
+            _block("Projects", DocumentBlockType.HEADING, 8),
+            _block(
+                "SkillLens — Resume intelligence platform using Python and React.",
+                DocumentBlockType.PARAGRAPH,
+                9,
+            ),
+        ),
+    )
 
 
 class StubResumeJDDocumentProcessor:
@@ -161,6 +268,33 @@ def _job_document() -> ParsedDocument:
     )
 
 
+def _job_document_with_missing_skill() -> ParsedDocument:
+    return ParsedDocument(
+        document_id="orchestrator-job-missing-skill-001",
+        document_type=DocumentType.PDF,
+        blocks=(
+            _block("Data Engineer", DocumentBlockType.PARAGRAPH, 0),
+            _block("About the Role", DocumentBlockType.HEADING, 1),
+            _block(
+                "Build scalable data systems using Python and Kubernetes.",
+                DocumentBlockType.PARAGRAPH,
+                2,
+            ),
+            _block("Responsibilities", DocumentBlockType.HEADING, 3),
+            _block(
+                "Develop and maintain data infrastructure.",
+                DocumentBlockType.BULLET,
+                4,
+            ),
+            _block("Required Qualifications", DocumentBlockType.HEADING, 5),
+            _block(
+                "Kubernetes experience",
+                DocumentBlockType.BULLET,
+                6,
+            ),
+        ),
+    )
+
 
 def _document_input() -> ResumeDocumentInput:
     return ResumeDocumentInput(
@@ -174,6 +308,38 @@ def _orchestrator() -> ConcreteAnalysisOrchestrator:
     return ConcreteAnalysisOrchestrator(
         document_processor=StubDocumentProcessor(_document()),
     )
+
+
+def _orchestrator_without_summary() -> ConcreteAnalysisOrchestrator:
+    return ConcreteAnalysisOrchestrator(
+        document_processor=StubDocumentProcessor(
+            _document_without_summary(),
+        ),
+    )
+
+
+def _orchestrator_with_stubbed_career() -> ConcreteAnalysisOrchestrator:
+    return ConcreteAnalysisOrchestrator(
+        document_processor=StubDocumentProcessor(_document()),
+        career_intelligence_analyzer=StubCareerIntelligenceAnalyzer(),
+    )
+
+
+def _orchestrator_with_llm_enhancer() -> tuple[
+    ConcreteAnalysisOrchestrator,
+    StubRecommendationLLMEnhancer,
+]:
+    enhancer = StubRecommendationLLMEnhancer()
+
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubDocumentProcessor(
+            _document_without_summary(),
+        ),
+        career_intelligence_analyzer=StubCareerIntelligenceAnalyzer(),
+        recommendation_llm_enhancer=enhancer,
+    )
+
+    return orchestrator, enhancer
 
 
 def test_orchestrator_implements_abstract_contract() -> None:
@@ -498,3 +664,207 @@ def test_resume_jd_analysis_can_disable_career_intelligence() -> None:
     assert "career_intelligence" not in result.metadata.engine_versions
     assert result.scoring is not None
     assert result.xai is not None
+
+
+def test_resume_analysis_populates_recommendations_by_default() -> None:
+    result = _orchestrator_without_summary().analyze_resume(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"test-document",
+            content_type="application/pdf",
+        ),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.recommendations
+    assert any(
+        recommendation.type == RecommendationType.RESUME
+        for recommendation in result.recommendations
+    )
+    assert all(
+        recommendation.recommendation_id
+        for recommendation in result.recommendations
+    )
+    assert all(
+        recommendation.rationale
+        for recommendation in result.recommendations
+    )
+
+
+def test_resume_analysis_can_disable_recommendations() -> None:
+    from backend.app.schemas.requests import AnalysisOptions
+
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(
+            options=AnalysisOptions(
+                include_recommendations=False,
+            )
+        ),
+    )
+
+    assert result.recommendations == []
+    assert "recommendation_intelligence" not in result.metadata.engine_versions
+
+
+def test_resume_analysis_records_recommendation_engine_version() -> None:
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert (
+        result.metadata.engine_versions["recommendation_intelligence"]
+        == "recommendation-intelligence-v1"
+    )
+
+
+def test_resume_analysis_career_recommendations_flow_through() -> None:
+    result = _orchestrator_with_stubbed_career().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    career_recommendations = [
+        recommendation
+        for recommendation in result.recommendations
+        if recommendation.type == RecommendationType.CAREER
+    ]
+
+    assert career_recommendations
+    assert any(
+        recommendation.title == "Explore Data Engineer career path"
+        for recommendation in career_recommendations
+    )
+    assert all(
+        recommendation.source_engine == "recommendation-intelligence-v1"
+        for recommendation in career_recommendations
+    )
+
+
+def test_resume_jd_analysis_populates_recommendations() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document_with_missing_skill(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert result.recommendations
+    assert any(
+        recommendation.type == RecommendationType.LEARNING
+        for recommendation in result.recommendations
+    )
+    assert all(
+        recommendation.recommendation_id
+        for recommendation in result.recommendations
+    )
+    assert all(
+        recommendation.rationale
+        for recommendation in result.recommendations
+    )
+    assert (
+        result.metadata.engine_versions["recommendation_intelligence"]
+        == "recommendation-intelligence-v1"
+    )
+
+
+def test_orchestrator_keeps_llm_disabled_by_default() -> None:
+    orchestrator = _orchestrator_without_summary()
+
+    result = orchestrator.analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.recommendations
+    assert "recommendation_llm_enhancer" not in result.metadata.engine_versions
+
+    for recommendation in result.recommendations:
+        assert not recommendation.title.startswith("LLM:")
+        assert not recommendation.rationale.startswith("LLM:")
+
+
+def test_orchestrator_applies_optional_llm_enhancement() -> None:
+    orchestrator, enhancer = _orchestrator_with_llm_enhancer()
+
+    result = orchestrator.analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.recommendations
+    assert enhancer.calls == len(result.recommendations)
+
+    assert (
+        result.metadata.engine_versions["recommendation_llm_enhancer"]
+        == StubRecommendationLLMEnhancer.ENGINE_VERSION
+    )
+
+    for recommendation in result.recommendations:
+        assert recommendation.title.startswith("LLM:")
+        assert recommendation.rationale.startswith("LLM:")
+
+
+def test_orchestrator_llm_enhancement_preserves_deterministic_fields() -> None:
+    baseline_orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubDocumentProcessor(
+            _document_without_summary(),
+        ),
+        career_intelligence_analyzer=StubCareerIntelligenceAnalyzer(),
+    )
+    baseline = baseline_orchestrator.analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    orchestrator, _ = _orchestrator_with_llm_enhancer()
+
+    enhanced = orchestrator.analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert len(enhanced.recommendations) == len(
+        baseline.recommendations
+    )
+
+    baseline_by_id = {
+        recommendation.recommendation_id: recommendation
+        for recommendation in baseline.recommendations
+    }
+
+    assert set(baseline_by_id) == {
+        recommendation.recommendation_id
+        for recommendation in enhanced.recommendations
+    }
+
+    for recommendation in enhanced.recommendations:
+        original = baseline_by_id[recommendation.recommendation_id]
+
+        assert recommendation.recommendation_id == original.recommendation_id
+        assert recommendation.type == original.type
+        assert recommendation.target_skill == original.target_skill
+        assert recommendation.priority == original.priority
+        assert recommendation.expected_impact == original.expected_impact
+        assert recommendation.effort == original.effort
+        assert recommendation.evidence == original.evidence
+        assert recommendation.related_gap_ids == original.related_gap_ids
+        assert recommendation.confidence == original.confidence
+        assert recommendation.priority_score == original.priority_score
+        assert recommendation.impact_score == original.impact_score
+        assert recommendation.source_engine == original.source_engine

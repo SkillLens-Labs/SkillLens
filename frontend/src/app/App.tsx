@@ -17,13 +17,22 @@ type AnalysisResult = {
 export default function App() {
   const [resume, setResume] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState<File | null>(null);
+  const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
   async function analyzeDocuments() {
-    if (!resume || !jobDescription) return;
+    if (!resume) {
+      setError("Please select a resume file.");
+      return;
+    }
+
+    if (!jobDescription && !jobDescriptionText.trim()) {
+      setError("Please upload a job description or paste its text.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -31,7 +40,12 @@ export default function App() {
 
     const formData = new FormData();
     formData.append("resume", resume);
-    formData.append("job_description", jobDescription);
+
+    if (jobDescription) {
+      formData.append("job_description", jobDescription);
+    } else {
+      formData.append("job_description_text", jobDescriptionText.trim());
+    }
 
     try {
       const response = await fetch(
@@ -80,12 +94,18 @@ export default function App() {
 
           <div className="file-summary">
             <strong>Job description</strong>
-            <span>{jobDescription?.name ?? "Not selected"}</span>
+            <span>
+              {jobDescription
+                ? `Selected file: ${jobDescription.name}`
+                : jobDescriptionText.trim()
+                  ? "Job description text entered"
+                  : "No job description selected"}
+            </span>
           </div>
 
           <button
             className="primary-button"
-            disabled={loading || !resume || !jobDescription}
+            disabled={loading || !resume}
             onClick={analyzeDocuments}
           >
             {loading ? "Analyzing..." : "Start analysis"}
@@ -173,7 +193,7 @@ export default function App() {
           <label className="upload-card">
             <span className="upload-number">02</span>
             <span className="upload-title">Job description</span>
-            <span className="upload-help">PDF or DOCX</span>
+            <span className="upload-help">PDF, DOCX, or pasted text</span>
 
             <input
               type="file"
@@ -188,12 +208,26 @@ export default function App() {
                 ? jobDescription.name
                 : "Choose job description"}
             </span>
+
+            <div className="field">
+              <label htmlFor="job-description-text">
+                Or paste job description text
+              </label>
+
+              <textarea
+                id="job-description-text"
+                value={jobDescriptionText}
+                onChange={(event) => setJobDescriptionText(event.target.value)}
+                placeholder="Paste the job description here..."
+                rows={10}
+              />
+            </div>
           </label>
         </div>
 
         <button
           className="primary-button"
-          disabled={!resume || !jobDescription}
+          disabled={!resume || (!jobDescription && !jobDescriptionText.trim())}
           onClick={() => setStarted(true)}
         >
           Continue to analysis

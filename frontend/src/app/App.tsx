@@ -1,18 +1,195 @@
 import { useState } from "react";
 
 import "./styles.css";
+import type {
+  AnalysisResult,
+  Recommendation,
+  RoleFit,
+} from "../types/analysis";
 
-type AnalysisResult = {
-  analysis_id: string;
-  analysis_mode: string;
-  status: string;
-  matching?: {
-    summary?: string;
-  };
-  scoring?: {
-    overall_score?: number;
-  };
-};
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+function scoreLabel(score: number) {
+  return `${score.toFixed(1)}%`;
+}
+
+function SkillList({
+  title,
+  skills,
+  emptyMessage,
+}: {
+  title: string;
+  skills: string[];
+  emptyMessage: string;
+}) {
+  return (
+    <section className="result-section">
+      <h3>{title}</h3>
+
+      {skills.length > 0 ? (
+        <div className="tag-list">
+          {skills.map((skill) => (
+            <span className="skill-tag" key={skill}>
+              {skill}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">{emptyMessage}</p>
+      )}
+    </section>
+  );
+}
+
+function RoleFitList({ roles }: { roles: RoleFit[] }) {
+  if (roles.length === 0) {
+    return <p className="muted">No career suggestions were generated.</p>;
+  }
+
+  return (
+    <div className="role-list">
+      {roles.map((role) => (
+        <article className="role-item" key={role.role}>
+          <div className="role-heading">
+            <strong>{role.role}</strong>
+            <span>{scoreLabel(role.fit_score)}</span>
+          </div>
+
+          <div className="score-track">
+            <div
+              className="score-fill"
+              style={{
+                width: `${Math.max(0, Math.min(100, role.fit_score))}%`,
+              }}
+            />
+          </div>
+
+          {role.rationale && <p>{role.rationale}</p>}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function RecommendationList({
+  recommendations,
+}: {
+  recommendations: Recommendation[];
+}) {
+  if (recommendations.length === 0) {
+    return <p className="muted">No recommendations were generated.</p>;
+  }
+
+  return (
+    <div className="recommendation-list">
+      {recommendations.map((recommendation) => (
+        <article
+          className="recommendation-item"
+          key={recommendation.recommendation_id}
+        >
+          <div className="recommendation-heading">
+            <strong>{recommendation.title}</strong>
+            <span className="small-label">
+              {recommendation.priority}
+            </span>
+          </div>
+
+          <p>{recommendation.rationale}</p>
+
+          {recommendation.expected_impact && (
+            <p>
+              <strong>Expected impact:</strong>{" "}
+              {recommendation.expected_impact}
+            </p>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function AnalysisResults({ result }: { result: AnalysisResult }) {
+  const scoring = result.scoring;
+  const skillAnalysis = result.skill_analysis;
+  const career = result.career_intelligence;
+
+  return (
+    <section className="results-panel">
+      <div className="result-header">
+        <div>
+          <p className="eyebrow">ANALYSIS COMPLETE</p>
+          <h2>Your SkillLens report</h2>
+          <p className="muted">
+            Review your current fit, skill gaps, and possible next steps.
+          </p>
+        </div>
+
+        {scoring && (
+          <div className="score-card">
+            <span>Overall fit</span>
+            <strong>{scoreLabel(scoring.overall_score)}</strong>
+          </div>
+        )}
+      </div>
+
+      {skillAnalysis && result.job_profile && (
+        <div className="result-grid">
+          <SkillList
+            title="Matched skills"
+            skills={skillAnalysis.matched_skills}
+            emptyMessage="No direct skill matches were found."
+          />
+
+          <SkillList
+            title="Missing skills"
+            skills={skillAnalysis.missing_skills}
+            emptyMessage="No missing skills were identified."
+          />
+
+          <SkillList
+            title="Transferable skills"
+            skills={skillAnalysis.transferable_skills}
+            emptyMessage="No transferable skills were identified."
+          />
+
+          <SkillList
+            title="Partial matches"
+            skills={skillAnalysis.partial_matches}
+            emptyMessage="No partial matches were identified."
+          />
+        </div>
+      )}
+
+      {career && (
+        <section className="result-section">
+          <h3>
+            {result.job_profile
+              ? "Career direction relative to this job"
+              : "Suggested career directions"}
+          </h3>
+
+          {career.transition_analysis && (
+            <p className="transition-summary">
+              {career.transition_analysis}
+            </p>
+          )}
+
+          <RoleFitList roles={career.role_fit} />
+        </section>
+      )}
+
+      <section className="result-section">
+        <h3>Recommendations</h3>
+        <RecommendationList recommendations={result.recommendations} />
+      </section>
+
+      <details className="raw-response">
+        <summary>View raw response</summary>
+        <pre>{JSON.stringify(result, null, 2)}</pre>
+      </details>
+    </section>
+  );
+}
 
 export default function App() {
   const [resume, setResume] = useState<File | null>(null);
@@ -45,8 +222,8 @@ export default function App() {
     try {
       const endpoint =
         jobDescription || jobDescriptionText.trim()
-          ? "http://127.0.0.1:8000/api/v1/analyses/resume-jd"
-          : "http://127.0.0.1:8000/api/v1/analyses/resume";
+          ? `${API_BASE_URL}/api/v1/analyses/resume-jd`
+          : `${API_BASE_URL}/api/v1/analyses/resume`;
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -118,28 +295,7 @@ export default function App() {
 
           {error && <p className="error-message">{error}</p>}
 
-          {result && (
-            <section className="result-card">
-              <h2>Analysis completed</h2>
-
-              <p>
-                Status: <strong>{result.status ?? "completed"}</strong>
-              </p>
-
-              {result.scoring?.overall_score !== undefined && (
-                <p>
-                  Overall score: <strong>{result.scoring.overall_score}</strong>
-                </p>
-              )}
-
-              {result.matching?.summary && <p>{result.matching.summary}</p>}
-
-              <details>
-                <summary>View raw response</summary>
-                <pre>{JSON.stringify(result, null, 2)}</pre>
-              </details>
-            </section>
-          )}
+          {result && <AnalysisResults result={result} />}
 
           <button
             className="secondary-button"

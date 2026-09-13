@@ -68,32 +68,78 @@ class RequirementAligner:
         skill_matches: list[SkillMatch] | tuple[SkillMatch, ...],
         job_skill_by_id: dict[str, Skill],
     ) -> RequirementAlignment:
-        candidate_matches = []
+        mentioned_job_skills = [
+            skill
+            for skill in job_skill_by_id.values()
+            if self._requirement_mentions_skill(requirement.text, skill)
+        ]
 
-        for match in skill_matches:
-            job_skill = job_skill_by_id.get(match.job_skill_id)
-            if job_skill is None:
-                continue
-
-            if not self._requirement_mentions_skill(
-                requirement.text,
-                job_skill,
-            ):
-                continue
-
-            candidate_matches.append(match)
-
-        if not candidate_matches:
+        if not mentioned_job_skills:
             return RequirementAlignment(
                 requirement_id=requirement.requirement_id,
                 status=RequirementMatchStatus.UNKNOWN,
-                evidence=requirement.evidence,
                 confidence=requirement.confidence,
-                rationale="No job-skill evidence could be linked to this requirement.",
+                rationale="no_matching_job_skill",
+                evidence=requirement.evidence,
             )
 
+        positive_matches: list[SkillMatch] = []
+        missing_skill_count = 0
+
+        for job_skill in mentioned_job_skills:
+            matches_for_skill = [
+                match
+                for match in skill_matches
+                if match.job_skill_id == job_skill.skill_id
+            ]
+
+            if not matches_for_skill:
+                missing_skill_count += 1
+                continue
+
+            strongest_for_skill = max(
+                matches_for_skill,
+                key=lambda match: (
+                    self._relationship_rank(match.relationship.value),
+                    match.similarity,
+                ),
+            )
+
+            if strongest_for_skill.relationship.value in {
+                "exact",
+                "strong_semantic",
+                "partial",
+            }:
+                positive_matches.append(strongest_for_skill)
+            else:
+                missing_skill_count += 1
+
+        if not positive_matches:
+            return RequirementAlignment(
+                requirement_id=requirement.requirement_id,
+                status=RequirementMatchStatus.UNMATCHED,
+                confidence=requirement.confidence,
+                rationale="no_positive_skill_match",
+                evidence=requirement.evidence,
+            )
+
+        relationships = [
+            match.relationship.value
+            for match in positive_matches
+        ]
+
+        if missing_skill_count > 0:
+            status = RequirementMatchStatus.PARTIAL
+        elif all(
+            relationship in {"exact", "strong_semantic"}
+            for relationship in relationships
+        ):
+            status = RequirementMatchStatus.MATCHED
+        else:
+            status = RequirementMatchStatus.PARTIAL
+
         strongest = max(
-            candidate_matches,
+            positive_matches,
             key=lambda match: (
                 self._relationship_rank(match.relationship.value),
                 match.similarity,
@@ -101,20 +147,19 @@ class RequirementAligner:
         )
 
         evidence = list(requirement.evidence)
-        evidence.extend(strongest.evidence)
-
-        status = self._skill_match_status(
-            relationship=strongest.relationship.value,
-        )
-
-        confidence = strongest.confidence or requirement.confidence
+        for match in positive_matches:
+            evidence.extend(match.evidence)
 
         return RequirementAlignment(
             requirement_id=requirement.requirement_id,
             status=status,
+            confidence=strongest.confidence,
+            rationale=(
+                "aligned_via_compound_skills"
+                if len(mentioned_job_skills) > 1
+                else f"aligned_via_{strongest.relationship.value}"
+            ),
             evidence=self._deduplicate_evidence(evidence),
-            confidence=confidence,
-            rationale=f"aligned_via_{strongest.relationship.value}",
         )
 
     def _align_structured_requirement(

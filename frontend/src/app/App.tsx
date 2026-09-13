@@ -29,11 +29,6 @@ export default function App() {
       return;
     }
 
-    if (!jobDescription && !jobDescriptionText.trim()) {
-      setError("Please upload a job description or paste its text.");
-      return;
-    }
-
     setLoading(true);
     setError("");
     setResult(null);
@@ -43,20 +38,30 @@ export default function App() {
 
     if (jobDescription) {
       formData.append("job_description", jobDescription);
-    } else {
+    } else if (jobDescriptionText.trim()) {
       formData.append("job_description_text", jobDescriptionText.trim());
     }
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/v1/analyses/resume-jd",
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const endpoint =
+        jobDescription || jobDescriptionText.trim()
+          ? "http://127.0.0.1:8000/api/v1/analyses/resume-jd"
+          : "http://127.0.0.1:8000/api/v1/analyses/resume";
 
-      const data = await response.json();
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      const responseText = await response.text();
+
+      let data: { detail?: string; data?: AnalysisResult };
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { detail: responseText };
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -64,7 +69,7 @@ export default function App() {
         );
       }
 
-      setResult(data.data);
+      setResult(data.data ?? null);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -123,14 +128,11 @@ export default function App() {
 
               {result.scoring?.overall_score !== undefined && (
                 <p>
-                  Overall score:{" "}
-                  <strong>{result.scoring.overall_score}</strong>
+                  Overall score: <strong>{result.scoring.overall_score}</strong>
                 </p>
               )}
 
-              {result.matching?.summary && (
-                <p>{result.matching.summary}</p>
-              )}
+              {result.matching?.summary && <p>{result.matching.summary}</p>}
 
               <details>
                 <summary>View raw response</summary>
@@ -180,9 +182,7 @@ export default function App() {
             <input
               type="file"
               accept=".pdf,.docx"
-              onChange={(event) =>
-                setResume(event.target.files?.[0] ?? null)
-              }
+              onChange={(event) => setResume(event.target.files?.[0] ?? null)}
             />
 
             <span className="file-name">
@@ -190,7 +190,7 @@ export default function App() {
             </span>
           </label>
 
-          <label className="upload-card">
+          <div className="upload-card">
             <span className="upload-number">02</span>
             <span className="upload-title">Job description</span>
             <span className="upload-help">PDF, DOCX, or pasted text</span>
@@ -204,9 +204,7 @@ export default function App() {
             />
 
             <span className="file-name">
-              {jobDescription
-                ? jobDescription.name
-                : "Choose job description"}
+              {jobDescription ? jobDescription.name : "Choose job description"}
             </span>
 
             <div className="field">
@@ -222,12 +220,12 @@ export default function App() {
                 rows={10}
               />
             </div>
-          </label>
+          </div>
         </div>
 
         <button
-          className="primary-button"
-          disabled={!resume || (!jobDescription && !jobDescriptionText.trim())}
+          type="button"
+          disabled={!resume}
           onClick={() => setStarted(true)}
         >
           Continue to analysis

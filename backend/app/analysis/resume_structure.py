@@ -164,17 +164,24 @@ class ResumeStructureInterpreter:
         self,
         block: DocumentBlock,
     ) -> ResumeSectionType | None:
-        """Return a semantic section type when a block is a resume heading."""
-        if block.block_type != DocumentBlockType.HEADING:
-            return None
+        """
+        Return a semantic section type when a block is a resume heading.
 
+        Some PDF parsers preserve text but do not reliably mark visual
+        headings as DocumentBlockType.HEADING. Known section-title text is
+        therefore accepted as a heading regardless of the parser block type.
+        Unknown paragraph text is still treated as normal content.
+        """
         normalized = self._normalize_heading(block.text)
 
         for section_type, aliases in self._SECTION_ALIASES.items():
             if normalized in aliases:
                 return section_type
 
-        return ResumeSectionType.UNKNOWN
+        if block.block_type == DocumentBlockType.HEADING:
+            return ResumeSectionType.UNKNOWN
+
+        return None
 
     @staticmethod
     def _normalize_heading(text: str) -> str:

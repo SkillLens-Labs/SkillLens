@@ -93,6 +93,7 @@ class JDStructureInterpreter:
                 "basic qualifications",
                 "must have",
                 "required skills",
+                "skills required",
                 "required experience",
                 "qualifications",
             }
@@ -114,6 +115,7 @@ class JDStructureInterpreter:
                 "skills",
                 "technical skills",
                 "required skills",
+                "skills required",
                 "technical requirements",
                 "technologies",
                 "technology",

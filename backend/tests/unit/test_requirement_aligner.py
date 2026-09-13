@@ -166,6 +166,101 @@ def test_skill_requirement_semantic_partial_match_is_partial() -> None:
 
     assert result[0].status == RequirementMatchStatus.PARTIAL
 
+def test_compound_skill_requirement_is_partial_when_one_skill_is_missing() -> None:
+    python = _skill("resume-python", "Python")
+    react = _skill("resume-react", "React")
+    job_python = _skill("job-python", "Python")
+    job_react = _skill("job-react", "React")
+    job_javascript = _skill("job-javascript", "JavaScript")
+
+    requirement = _skill_requirement(
+        "req-web-stack",
+        "Knowledge of React, JavaScript, and Python",
+    )
+
+    skill_matches = [
+        SkillMatch(
+            resume_skill_id=python.skill_id,
+            job_skill_id=job_python.skill_id,
+            relationship=MatchRelationship.EXACT,
+            similarity=1.0,
+            confidence=_confidence(),
+            evidence=[*python.evidence, _job_evidence("Python")],
+        ),
+        SkillMatch(
+            resume_skill_id=react.skill_id,
+            job_skill_id=job_react.skill_id,
+            relationship=MatchRelationship.EXACT,
+            similarity=1.0,
+            confidence=_confidence(),
+            evidence=[*react.evidence, _job_evidence("React")],
+        ),
+    ]
+
+    result = RequirementAligner().align(
+        [requirement],
+        skill_matches,
+        [python, react],
+        [job_python, job_react, job_javascript],
+        _resume_structure(()),
+    )
+
+    assert result[0].status == RequirementMatchStatus.PARTIAL
+
+
+def test_compound_skill_requirement_is_matched_when_all_skills_match() -> None:
+    python = _skill("resume-python", "Python")
+    react = _skill("resume-react", "React")
+    javascript = _skill("resume-javascript", "JavaScript")
+
+    job_python = _skill("job-python", "Python")
+    job_react = _skill("job-react", "React")
+    job_javascript = _skill("job-javascript", "JavaScript")
+
+    requirement = _skill_requirement(
+        "req-web-stack",
+        "Knowledge of React, JavaScript, and Python",
+    )
+
+    skill_matches = [
+        SkillMatch(
+            resume_skill_id=python.skill_id,
+            job_skill_id=job_python.skill_id,
+            relationship=MatchRelationship.EXACT,
+            similarity=1.0,
+            confidence=_confidence(),
+            evidence=[*python.evidence, _job_evidence("Python")],
+        ),
+        SkillMatch(
+            resume_skill_id=react.skill_id,
+            job_skill_id=job_react.skill_id,
+            relationship=MatchRelationship.EXACT,
+            similarity=1.0,
+            confidence=_confidence(),
+            evidence=[*react.evidence, _job_evidence("React")],
+        ),
+        SkillMatch(
+            resume_skill_id=javascript.skill_id,
+            job_skill_id=job_javascript.skill_id,
+            relationship=MatchRelationship.EXACT,
+            similarity=1.0,
+            confidence=_confidence(),
+            evidence=[
+                *javascript.evidence,
+                _job_evidence("JavaScript"),
+            ],
+        ),
+    ]
+
+    result = RequirementAligner().align(
+        [requirement],
+        skill_matches,
+        [python, react, javascript],
+        [job_python, job_react, job_javascript],
+        _resume_structure(()),
+    )
+
+    assert result[0].status == RequirementMatchStatus.MATCHED
 
 def test_skill_requirement_without_linked_match_is_unknown() -> None:
     python = _skill("resume-python", "Python")

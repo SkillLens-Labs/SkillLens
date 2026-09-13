@@ -104,8 +104,8 @@ def _job_description_text_as_docx(
         )
 
     document = Document()
-
     lines = [line.strip() for line in text.splitlines() if line.strip()]
+
     if not lines:
         raise ApplicationError(
             code="EMPTY_DOCUMENT",
@@ -113,16 +113,92 @@ def _job_description_text_as_docx(
             field=f"{document_name}_text",
         )
 
-    # Preserve the first line as the document title.
+    heading_aliases = {
+        "summary",
+        "job summary",
+        "position summary",
+        "about the role",
+        "about this role",
+        "overview",
+        "job overview",
+        "responsibilities",
+        "key responsibilities",
+        "roles and responsibilities",
+        "role and responsibilities",
+        "duties",
+        "job duties",
+        "requirements",
+        "required qualifications",
+        "minimum qualifications",
+        "basic qualifications",
+        "must have",
+        "required skills",
+        "skills required",
+        "required experience",
+        "qualifications",
+        "preferred qualifications",
+        "preferred requirements",
+        "preferred skills",
+        "preferred experience",
+        "nice to have",
+        "nice-to-have",
+        "desired qualifications",
+        "additional qualifications",
+        "skills",
+        "technical skills",
+        "technical requirements",
+        "technologies",
+        "technology",
+        "tech stack",
+        "technical competencies",
+        "experience",
+        "professional experience",
+        "work experience",
+        "years of experience",
+        "education",
+        "educational requirements",
+        "educational qualifications",
+        "academic requirements",
+        "academic qualifications",
+        "degree requirements",
+        "certifications",
+        "certification requirements",
+        "licenses",
+        "licenses and certifications",
+        "licenses & certifications",
+    }
+
+    def normalize_heading(line: str) -> str:
+        normalized = " ".join(line.lower().split())
+        normalized = normalized.rstrip(":").strip()
+        normalized = normalized.rstrip("–—-").strip()
+        return normalized
+
+    def is_heading(line: str) -> bool:
+        return normalize_heading(line) in heading_aliases
+
+    # Use the first line as the document title.
     document.add_heading(lines[0], level=1)
 
-    # Put remaining plain text into a section the JD pipeline understands.
-    if len(lines) > 1:
-        document.add_heading("Responsibilities", level=2)
-        for line in lines[1:]:
-            document.add_paragraph(line)
-    else:
-        document.add_heading("Responsibilities", level=2)
+    current_section_started = False
+
+    for line in lines[1:]:
+        if is_heading(line):
+            document.add_heading(
+                normalize_heading(line).title(),
+                level=2,
+            )
+            current_section_started = True
+            continue
+
+        if not current_section_started:
+            document.add_heading("Summary", level=2)
+            current_section_started = True
+
+        document.add_paragraph(line)
+
+    if not current_section_started:
+        document.add_heading("Summary", level=2)
         document.add_paragraph(lines[0])
 
     output = io.BytesIO()

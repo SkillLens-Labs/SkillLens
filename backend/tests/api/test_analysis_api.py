@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -363,7 +364,18 @@ def test_resume_jd_analysis_endpoint_returns_matching_result() -> None:
 
     assert data["skill_analysis"] is not None
     assert data["skill_analysis"]["extracted_skills"]
-    assert data["skill_analysis"]["matched_skills"]
+
+    print("\nSKILL MATCHES:")
+    print(json.dumps(data["matching"]["skill_matches"], indent=2, default=str))
+
+    print("\nREQUIREMENT ALIGNMENTS:")
+    print(json.dumps(data["matching"]["requirement_alignments"], indent=2, default=str))
+
+    print("\nSKILL ANALYSIS:")
+    print(json.dumps(data["skill_analysis"], indent=2, default=str))
+
+    assert data["skill_analysis"]["partial_matches"]
+    assert "Strong Python and SQL skills." in data["skill_analysis"]["partial_matches"]
     assert isinstance(data["skill_analysis"]["gaps"], list)
 
     assert data["scoring"] is not None

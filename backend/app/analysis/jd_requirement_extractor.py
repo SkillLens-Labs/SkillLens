@@ -122,8 +122,9 @@ class JDRequirementExtractor:
         requirements: list[JobRequirement] = []
 
         for candidate in candidates:
-            requirement_type = self._requirement_type_for_section(
-                candidate.section.section_type
+            requirement_type = self._requirement_type_for_candidate(
+                section_type=candidate.section.section_type,
+                text=candidate.text,
             )
             if requirement_type is None:
                 continue
@@ -239,6 +240,40 @@ class JDRequirementExtractor:
     @classmethod
     def _looks_like_certification(cls, text: str) -> bool:
         return any(term in text for term in cls._CERTIFICATION_TERMS)
+
+    @classmethod
+    def _requirement_type_for_candidate(
+        cls,
+        *,
+        section_type: JDSectionType,
+        text: str,
+    ) -> JobRequirementType | None:
+        normalized = text.casefold()
+
+        explicit_preferred = (
+            re.search(r"\bpreferred\b", normalized) is not None
+            or re.search(r"\bdesired\b", normalized) is not None
+            or re.search(r"\bbonus\b", normalized) is not None
+            or re.search(r"\bnice[- ]to[- ]have\b", normalized) is not None
+            or re.search(r"\bis\s+a\s+plus\b", normalized) is not None
+            or re.search(r"\bwould\s+be\s+a\s+plus\b", normalized) is not None
+            or re.search(r"\badvantage\b", normalized) is not None
+            or re.search(r"\bbeneficial\b", normalized) is not None
+        )
+
+        explicit_required = (
+            re.search(r"\brequired\b", normalized) is not None
+            or re.search(r"\bmust\b", normalized) is not None
+            or re.search(r"\bmandatory\b", normalized) is not None
+        )
+
+        if explicit_preferred and not explicit_required:
+            return JobRequirementType.PREFERRED
+
+        if explicit_required:
+            return JobRequirementType.REQUIRED
+
+        return cls._requirement_type_for_section(section_type)
 
     @classmethod
     def _requirement_type_for_section(

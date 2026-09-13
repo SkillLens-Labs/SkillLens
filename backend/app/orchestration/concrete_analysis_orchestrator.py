@@ -28,6 +28,8 @@ from backend.app.analysis.recommendation_llm_enhancer import (
 from backend.app.analysis.resume_profile_builder import ResumeProfileBuilder
 from backend.app.analysis.requirement_aligner import RequirementAligner
 from backend.app.analysis.resume_quality import ResumeQualityAnalyzer
+from backend.app.analysis.resume_language_quality import ResumeLanguageQualityAnalyzer
+from backend.app.analysis.resume_improvement_prompt import ResumeImprovementPromptGenerator
 from backend.app.analysis.resume_structure import ResumeStructureInterpreter
 from backend.app.analysis.skill_extractor import SkillExtractor
 from backend.app.analysis.skill_matcher import SkillMatcher
@@ -66,6 +68,8 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         esco_mapper: ESCOMapper | None = None,
         profile_builder: ResumeProfileBuilder | None = None,
         quality_analyzer: ResumeQualityAnalyzer | None = None,
+        language_quality_analyzer: ResumeLanguageQualityAnalyzer | None = None,
+        resume_improvement_prompt_generator: ResumeImprovementPromptGenerator | None = None,
         ats_analyzer: ATSIntelligenceAnalyzer | None = None,
         career_intelligence_analyzer: CareerIntelligenceAnalyzer | None = None,
         jd_structure_interpreter: JDStructureInterpreter | None = None,
@@ -90,6 +94,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         self._esco_mapper = esco_mapper or ESCOMapper()
         self._profile_builder = profile_builder or ResumeProfileBuilder()
         self._quality_analyzer = quality_analyzer or ResumeQualityAnalyzer()
+        self._language_quality_analyzer = (
+            language_quality_analyzer or ResumeLanguageQualityAnalyzer()
+        )
+        self._resume_improvement_prompt_generator = (
+            resume_improvement_prompt_generator
+            or ResumeImprovementPromptGenerator()
+        )
         self._ats_analyzer = ats_analyzer or ATSIntelligenceAnalyzer()
         self._career_intelligence_analyzer = (
             career_intelligence_analyzer or CareerIntelligenceAnalyzer()
@@ -179,6 +190,10 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             structured_resume,
             resume_profile,
         )
+        language_quality = self._language_quality_analyzer.analyze(
+            parsed_document=document,
+            structured_resume=structured_resume,
+        )
         ats_intelligence = self._ats_analyzer.analyze(
             document,
             structured_resume,
@@ -209,12 +224,15 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
         warnings = (
             *resume_quality.warnings,
             *ats_intelligence.warnings,
+            *language_quality.warnings,
         )
 
         engine_versions = {
             "orchestrator": self.ENGINE_VERSION,
             "profile_builder": self._profile_builder.BUILDER_VERSION,
             "resume_quality": self._quality_analyzer.ENGINE_VERSION,
+            "language_quality": self._language_quality_analyzer.ENGINE_VERSION,
+            "resume_improvement_prompt": self._resume_improvement_prompt_generator.ENGINE_VERSION,
             "ats_intelligence": self._ats_analyzer.ENGINE_VERSION,
         }
 
@@ -248,6 +266,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_profile=resume_profile,
             resume_quality=resume_quality,
             ats_intelligence=ats_intelligence,
+            language_quality=language_quality,
             career_intelligence=career_intelligence,
             recommendations=recommendations,
             metadata=AnalysisMetadata(
@@ -269,6 +288,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             ),
         )
 
+        result = result.model_copy(
+            update={
+                "resume_improvement_prompt": (
+                    self._resume_improvement_prompt_generator.generate(result)
+                )
+            }
+        )
         self._analyses[analysis_id] = result
         return result
 
@@ -298,6 +324,11 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             structured_resume,
             resume_normalized_skills,
             resume_esco_results,
+        )
+
+        language_quality = self._language_quality_analyzer.analyze(
+            parsed_document=resume_document,
+            structured_resume=structured_resume,
         )
 
         career_intelligence = None
@@ -400,6 +431,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             ),
             resume_profile=resume_profile,
             job_profile=jd_build.profile,
+            language_quality=language_quality,
             matching=matching,
             skill_analysis=skill_analysis,
             scoring=scoring,
@@ -411,6 +443,8 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     "orchestrator": self.ENGINE_VERSION,
                     "profile_builder": self._profile_builder.BUILDER_VERSION,
                     "jd_profile_builder": self._jd_profile_builder.BUILDER_VERSION,
+                    "language_quality": self._language_quality_analyzer.ENGINE_VERSION,
+                    "resume_improvement_prompt": self._resume_improvement_prompt_generator.ENGINE_VERSION,
                     "skill_matcher": self._skill_matcher.ENGINE_VERSION,
                     "requirement_aligner": self._requirement_aligner.ENGINE_VERSION,
                     "gap_analyzer": self._gap_analyzer.ENGINE_VERSION,
@@ -446,7 +480,7 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     ),
                 },
                 processing_time_ms=processing_time_ms,
-                warnings=(),
+                warnings=language_quality.warnings,
                 extra={
                     "source": (
                         request.client_metadata.source
@@ -464,6 +498,13 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             ),
         )
 
+        result = result.model_copy(
+            update={
+                "resume_improvement_prompt": (
+                    self._resume_improvement_prompt_generator.generate(result)
+                )
+            }
+        )
         self._analyses[analysis_id] = result
         return result
 

@@ -7,6 +7,7 @@ from backend.app.domain.ats_intelligence import ATSIntelligenceResult
 from backend.app.domain.career import CareerIntelligence
 from backend.app.domain.gaps import SkillAnalysis
 from backend.app.domain.job import JobProfile
+from backend.app.domain.language_quality import ResumeLanguageQualityResult
 from backend.app.domain.matching import MatchingResult
 from backend.app.domain.recommendations import Recommendation
 from backend.app.domain.resume import ResumeProfile
@@ -64,6 +65,8 @@ class AnalysisResult(BaseModel):
     skill_analysis: SkillAnalysis = Field(default_factory=SkillAnalysis)
     resume_quality: ResumeQualityResult | None = None
     ats_intelligence: ATSIntelligenceResult | None = None
+    language_quality: ResumeLanguageQualityResult | None = None
+    resume_improvement_prompt: str | None = None
     matching: MatchingResult | None = None
 
     scoring: ScoringResult | None = None

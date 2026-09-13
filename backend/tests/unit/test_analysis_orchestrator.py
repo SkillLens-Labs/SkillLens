@@ -8,6 +8,7 @@ from backend.app.analysis.resume_quality import ResumeQualityAnalyzer
 from backend.app.analysis.resume_structure import ResumeSectionType, ResumeStructureInterpreter
 from backend.app.analysis.skill_extractor import SkillExtractor
 from backend.app.analysis.skill_normalizer import SkillNormalizer
+from backend.app.analysis.resume_language_quality import ResumeLanguageQualityAnalyzer
 from backend.app.domain.analysis import AnalysisMode, AnalysisStatus
 from backend.app.domain.career import (
     CareerDirection,
@@ -368,6 +369,81 @@ def test_resume_document_analysis_runs_complete_pipeline() -> None:
     assert result.resume_quality is not None
     assert result.ats_intelligence is not None
 
+    assert result.language_quality is not None
+    assert result.language_quality.overall_score >= 0.0
+    assert result.language_quality.overall_score <= 100.0
+
+
+
+def test_resume_analysis_integrates_resume_improvement_prompt() -> None:
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.resume_improvement_prompt is not None
+    assert result.resume_improvement_prompt.strip()
+    assert "CANDIDATE FACTS" in result.resume_improvement_prompt
+    assert "CURRENT RESUME QUALITY" in result.resume_improvement_prompt
+    assert "LANGUAGE QUALITY" in result.resume_improvement_prompt
+    assert "STRICT FACTUALITY RULES" in result.resume_improvement_prompt
+    assert result.metadata.engine_versions[
+        "resume_improvement_prompt"
+    ] == "phase9-resume-improvement-prompt-v1"
+
+
+def test_resume_jd_analysis_integrates_resume_improvement_prompt() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert result.resume_improvement_prompt is not None
+    assert result.resume_improvement_prompt.strip()
+    assert "JOB MATCH ANALYSIS" in result.resume_improvement_prompt
+    assert "Required skills:" in result.resume_improvement_prompt
+    assert "Preferred skills:" in result.resume_improvement_prompt
+    assert "Matched skills:" in result.resume_improvement_prompt
+    assert "Partial matches:" in result.resume_improvement_prompt
+    assert "Missing skills:" in result.resume_improvement_prompt
+    assert "STRICT FACTUALITY RULES" in result.resume_improvement_prompt
+    assert result.metadata.engine_versions[
+        "resume_improvement_prompt"
+    ] == "phase9-resume-improvement-prompt-v1"
+
+
+def test_resume_analysis_integrates_language_quality() -> None:
+    result = _orchestrator().analyze_resume(
+        _document_input(),
+        ResumeAnalysisRequest(),
+    )
+
+    assert result.language_quality is not None
+    assert result.metadata.engine_versions["language_quality"] == (
+        ResumeLanguageQualityAnalyzer.ENGINE_VERSION
+    )
+    assert result.language_quality.confidence is not None
+    assert result.language_quality.authorship_heuristic is not None
+    assert result.language_quality.authorship_heuristic.disclaimer == (
+        "This is a heuristic writing-style estimate, not proof of AI authorship."
+    )
+
 
 def test_orchestrator_preserves_phase3_structure_and_skill_pipeline() -> None:
     result = _orchestrator().analyze_resume(
@@ -396,6 +472,10 @@ def test_orchestrator_populates_engine_metadata() -> None:
     assert versions["profile_builder"] == "phase3-v1"
     assert versions["resume_quality"] == ResumeQualityAnalyzer.ENGINE_VERSION
     assert versions["ats_intelligence"] == ATSIntelligenceAnalyzer.ENGINE_VERSION
+    assert (
+        versions["language_quality"]
+        == ResumeLanguageQualityAnalyzer.ENGINE_VERSION
+    )
 
 
 def test_orchestrator_records_processing_time() -> None:
@@ -541,6 +621,40 @@ def test_resume_jd_analysis_runs_complete_phase5_pipeline() -> None:
 
     assert result.metadata.extra["job_requirement_count"] >= 2
     assert result.metadata.extra["job_skill_count"] >= 2
+
+    assert result.language_quality is not None
+    assert result.language_quality.overall_score >= 0.0
+    assert result.language_quality.overall_score <= 100.0
+
+
+def test_resume_jd_analysis_integrates_language_quality() -> None:
+    orchestrator = ConcreteAnalysisOrchestrator(
+        document_processor=StubResumeJDDocumentProcessor(
+            _document(),
+            _job_document(),
+        ),
+    )
+
+    result = orchestrator.analyze_resume_jd(
+        ResumeDocumentInput(
+            filename="resume.pdf",
+            content=b"resume-document",
+            content_type="application/pdf",
+        ),
+        JobDescriptionDocumentInput(
+            filename="job.pdf",
+            content=b"job-document",
+            content_type="application/pdf",
+        ),
+        ResumeJDAnalysisRequest(),
+    )
+
+    assert result.language_quality is not None
+    assert result.metadata.engine_versions["language_quality"] == (
+        ResumeLanguageQualityAnalyzer.ENGINE_VERSION
+    )
+    assert result.language_quality.confidence is not None
+    assert result.language_quality.authorship_heuristic is not None
 
 
 def test_resume_jd_analysis_stores_result() -> None:

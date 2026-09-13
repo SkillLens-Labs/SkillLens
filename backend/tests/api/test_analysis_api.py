@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from backend.app.analysis.resume_language_quality import ResumeLanguageQualityAnalyzer
 from backend.app.main import app
 
 
@@ -67,6 +68,17 @@ def test_resume_analysis_endpoint_returns_canonical_result() -> None:
     assert data["career_intelligence"]["taxonomy_version"] == "career-taxonomy-v1"
     assert data["career_intelligence"]["engine_version"] == "phase7-career-intelligence-v1"
     assert data["recommendations"] == []
+
+    assert data["language_quality"] is not None
+    assert 0.0 <= data["language_quality"]["overall_score"] <= 100.0
+    assert data["language_quality"]["authorship_heuristic"] is not None
+    assert data["language_quality"]["authorship_heuristic"]["disclaimer"] == (
+        "This is a heuristic writing-style estimate, not proof of AI authorship."
+    )
+    assert (
+        data["metadata"]["engine_versions"]["language_quality"]
+        == ResumeLanguageQualityAnalyzer.ENGINE_VERSION
+    )
 
 
 def test_resume_analysis_endpoint_supports_docx() -> None:
@@ -358,6 +370,20 @@ def test_resume_jd_analysis_endpoint_returns_matching_result() -> None:
 
     assert data["resume_profile"] is not None
     assert data["job_profile"] is not None
+
+    assert data["language_quality"] is not None
+    assert 0.0 <= data["language_quality"]["overall_score"] <= 100.0
+    assert data["language_quality"]["confidence"] is not None
+    assert data["language_quality"]["authorship_heuristic"] is not None
+    assert (
+        data["language_quality"]["authorship_heuristic"]["disclaimer"]
+        == "This is a heuristic writing-style estimate, not proof of AI authorship."
+    )
+    assert (
+        data["metadata"]["engine_versions"]["language_quality"]
+        == ResumeLanguageQualityAnalyzer.ENGINE_VERSION
+    )
+
     assert data["matching"] is not None
     assert data["matching"]["skill_matches"]
     assert data["matching"]["requirement_alignments"]

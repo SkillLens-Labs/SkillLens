@@ -116,6 +116,13 @@ class XAIAnalyzer:
         explanations: list[SkillExplanation] = []
 
         for match in matching.skill_matches:
+            # Only explain positive matches. Weak/unmatched pairwise
+            # comparisons are diagnostic data, not successful matches.
+            if match.relationship.value not in {
+                "exact",
+                "strong_semantic",
+            }:
+                continue
             resume_skill = resume_by_id.get(match.resume_skill_id)
             job_skill = job_by_id.get(match.job_skill_id)
 

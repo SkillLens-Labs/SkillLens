@@ -121,7 +121,18 @@ class GapAnalyzer:
             )
 
             if status == RequirementMatchStatus.MATCHED:
-                matched_skills.append(target_skill_name)
+                resolved_names = self._matched_skill_names(
+                    requirement=requirement,
+                    skill_matches=skill_matches,
+                    resume_skill_by_id=resume_skill_by_id,
+                    job_skill_by_id=job_skill_by_id,
+                )
+
+                if resolved_names:
+                    matched_skills.extend(resolved_names)
+                else:
+                    matched_skills.append(target_skill_name)
+
                 continue
 
             gap_type = self._GAP_TYPES.get(status)
@@ -165,6 +176,47 @@ class GapAnalyzer:
         )
 
     @staticmethod
+    def _matched_skill_names(
+        *,
+        requirement: JobRequirement,
+        skill_matches: tuple[SkillMatch, ...],
+        resume_skill_by_id: dict[str, Skill],
+        job_skill_by_id: dict[str, Skill],
+    ) -> list[str]:
+        """Return job-skill names represented by matches for this requirement."""
+        mentioned_skill_ids = {
+            skill.skill_id
+            for skill in job_skill_by_id.values()
+            if skill.canonical_name.casefold() in requirement.text.casefold()
+            or skill.display_name.casefold() in requirement.text.casefold()
+        }
+
+        if requirement.skill_id:
+            mentioned_skill_ids.add(requirement.skill_id)
+
+        if requirement.canonical_name:
+            canonical = requirement.canonical_name.casefold()
+            mentioned_skill_ids.update(
+                skill.skill_id
+                for skill in job_skill_by_id.values()
+                if skill.canonical_name.casefold() == canonical
+            )
+
+        matched_names: list[str] = []
+
+        for match in skill_matches:
+            if match.job_skill_id not in mentioned_skill_ids:
+                continue
+
+            job_skill = job_skill_by_id.get(match.job_skill_id)
+            if job_skill is None:
+                continue
+
+            matched_names.append(job_skill.display_name)
+
+        return GapAnalyzer._unique_strings(matched_names)
+
+    @staticmethod
     def _resolve_target_skill(
         *,
         requirement: JobRequirement,
@@ -195,7 +247,11 @@ class GapAnalyzer:
         candidates = [
             match
             for match in skill_matches
-            if match.job_skill_id == target_skill_id
+            if (
+                match.job_skill_id == target_skill_id
+                and match.relationship.value
+                in {"exact", "strong_semantic", "partial"}
+            )
         ]
 
         if len(candidates) == 1:

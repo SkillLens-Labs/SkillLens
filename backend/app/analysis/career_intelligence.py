@@ -1135,9 +1135,16 @@ class CareerIntelligenceAnalyzer:
                 + "."
             )
 
+        if primary:
+            return (
+                "Evidence is concentrated around "
+                + ", ".join(primary[:3])
+                + "."
+            )
+
         return (
-            "Evidence is concentrated around "
-            + ", ".join(primary[:3])
+            "Evidence points toward adjacent career directions, including "
+            + ", ".join(secondary[:3])
             + "."
         )
 

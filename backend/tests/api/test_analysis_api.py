@@ -374,3 +374,150 @@ def test_resume_jd_analysis_endpoint_returns_matching_result() -> None:
     assert data["xai"] is not None
     assert data["xai"]["overall_explanation"]
     assert data["xai"]["score_explanation"]
+
+def test_resume_analysis_accepts_resume_text() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume",
+        data={
+            "resume_text": (
+                "John Doe\n"
+                "Python developer with FastAPI, SQL, Docker, and AWS experience."
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["analysis_mode"] == "resume_only"
+    assert data["status"] == "completed"
+
+
+def test_resume_jd_accepts_resume_file_and_jd_text() -> None:
+    with DOCX_FIXTURE.open("rb") as resume:
+        response = client.post(
+            "/api/v1/analyses/resume-jd",
+            files={
+                "resume": (
+                    "phase3_sample_resume.docx",
+                    resume,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+            data={
+                "job_description_text": (
+                    "We are looking for a Python developer with FastAPI, "
+                    "SQL, Docker, and AWS experience."
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["analysis_mode"] == "resume_jd"
+    assert data["status"] == "completed"
+
+
+def test_resume_jd_accepts_resume_text_and_jd_file() -> None:
+    with JD_FIXTURE.open("rb") as job_description:
+        response = client.post(
+            "/api/v1/analyses/resume-jd",
+            files={
+                "job_description": (
+                    "phase5_sample_job_description.docx",
+                    job_description,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+            data={
+                "resume_text": (
+                    "John Doe\n"
+                    "Python developer with FastAPI, SQL, Docker, and AWS experience."
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["analysis_mode"] == "resume_jd"
+    assert data["status"] == "completed"
+
+
+def test_resume_jd_accepts_resume_text_and_jd_text() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume-jd",
+        data={
+            "resume_text": (
+                "John Doe\n"
+                "Python developer with FastAPI, SQL, Docker, and AWS experience."
+            ),
+            "job_description_text": (
+                "We are looking for a Python developer with FastAPI, "
+                "SQL, Docker, and AWS experience."
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["analysis_mode"] == "resume_jd"
+    assert data["status"] == "completed"
+
+
+def test_resume_jd_text_extracts_skills_and_matches_resume() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume-jd",
+        data={
+            "resume_text": (
+                "John Doe\n"
+                "Python developer with FastAPI, SQL, Docker, and AWS experience."
+            ),
+            "job_description_text": (
+                "We are looking for a Python developer with FastAPI, "
+                "SQL, Docker, and AWS experience."
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()["data"]
+
+    assert data["status"] == "completed"
+    assert data["matching"]["metadata"]["job_skill_count"] == 5
+
+
+def test_resume_analysis_rejects_missing_resume_input() -> None:
+    response = client.post("/api/v1/analyses/resume")
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["code"] == "INVALID_DOCUMENT_INPUT"
+
+
+def test_resume_analysis_rejects_file_and_text_together() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume",
+        files={
+            "resume": (
+                "resume.txt",
+                b"resume content",
+                "text/plain",
+            )
+        },
+        data={"resume_text": "duplicate resume content"},
+    )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["code"] == "INVALID_DOCUMENT_INPUT"
+
+
+def test_resume_jd_rejects_missing_job_description_input() -> None:
+    response = client.post(
+        "/api/v1/analyses/resume-jd",
+        data={"resume_text": "Python developer with FastAPI experience."},
+    )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["code"] == "INVALID_DOCUMENT_INPUT"

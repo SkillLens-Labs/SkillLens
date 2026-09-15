@@ -128,6 +128,6 @@ def test_phase3_resume_analysis_pipeline() -> None:
         "programming",
         "web",
     ]
-    assert profile.metadata["builder_version"] == "phase3-v1"
+    assert profile.metadata["builder_version"] == "phase3-v2"
     assert profile.metadata["esco_version"] == "1.2.1"
     assert profile.metadata["skill_count"] == 5

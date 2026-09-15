@@ -302,3 +302,445 @@ def test_rejects_mismatched_skill_and_mapping_lengths():
         assert "same number" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
+
+
+
+def test_extracts_structured_education_entry() -> None:
+    degree_block = _block(
+        "Bachelor of Engineering – Computer Science",
+        0,
+    )
+    institution_block = _block(
+        "Prof. Ram Meghe College of Engineering & Management, SGBAU",
+        1,
+    )
+    date_block = _block(
+        "Aug 2023 - May 2027",
+        2,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.EDUCATION,
+            heading="Education",
+            blocks=(degree_block, institution_block, date_block),
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert len(profile.education) == 1
+
+    education = profile.education[0]
+
+    assert education.degree == "Bachelor of Engineering"
+    assert education.field_of_study == "Computer Science"
+    assert education.institution.startswith(
+        "Prof. Ram Meghe College"
+    )
+    assert education.start_date == "Aug 2023"
+    assert education.end_date == "May 2027"
+
+
+def test_extracts_multiple_projects_with_exposure_and_description() -> None:
+    blocks = (
+        _block(
+            "DataBridge – End-to-End Data Intelligence Pipeline",
+            0,
+        ),
+        _block("[GitHub Repo]", 1),
+        _block(
+            "Exposure: Python, FastAPI, React, Pandas, SQL, Docker",
+            2,
+        ),
+        _block(
+            "Built an end-to-end data intelligence pipeline.",
+            3,
+        ),
+        _block(
+            "TradeBook – High-Performance Order Matching Engine",
+            4,
+        ),
+        _block("[GitHub Repo]", 5),
+        _block(
+            "Exposure: C++, STL, OOP, Data Structures, Algorithms",
+            6,
+        ),
+        _block(
+            "Implemented a high-performance matching engine.",
+            7,
+        ),
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.PROJECTS,
+            heading="Selected Works",
+            blocks=blocks,
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert len(profile.projects) == 2
+
+    first = profile.projects[0]
+
+    assert first.name == (
+        "DataBridge – End-to-End Data Intelligence Pipeline"
+    )
+    assert first.technologies == [
+        "Python",
+        "FastAPI",
+        "React",
+        "Pandas",
+        "SQL",
+        "Docker",
+    ]
+    assert "end-to-end data intelligence pipeline" in (
+        first.description or ""
+    )
+    assert "[GitHub Repo]" not in (first.description or "")
+
+    second = profile.projects[1]
+
+    assert second.name == (
+        "TradeBook – High-Performance Order Matching Engine"
+    )
+    assert second.technologies == [
+        "C++",
+        "STL",
+        "OOP",
+        "Data Structures",
+        "Algorithms",
+    ]
+    assert "[GitHub Repo]" not in (second.description or "")
+
+def test_does_not_treat_short_description_fragments_as_project_titles() -> None:
+    blocks = (
+        _block(
+            "Example Project – Data Intelligence Platform",
+            0,
+        ),
+        _block(
+            "Exposure: Python, FastAPI, Pandas, SQL",
+            1,
+        ),
+        _block(
+            "Designed a shared-state pipeline coordinating 12 analysis modules",
+            2,
+        ),
+        _block(
+            "Implemented parallel response processing with Python workers",
+            3,
+        ),
+        _block(
+            "Developed a web application for batch submission and tracking",
+            4,
+        ),
+        _block(
+            "Another Project – Order Matching Engine",
+            5,
+        ),
+        _block(
+            "Exposure: C++, STL, OOP, Algorithms",
+            6,
+        ),
+        _block(
+            "Built a high-performance order matching engine",
+            7,
+        ),
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.PROJECTS,
+            heading="Selected Works",
+            blocks=blocks,
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert len(profile.projects) == 2
+
+    first = profile.projects[0]
+
+    assert first.name == "Example Project – Data Intelligence Platform"
+    assert first.technologies == [
+        "Python",
+        "FastAPI",
+        "Pandas",
+        "SQL",
+    ]
+    assert first.description is not None
+    assert "Designed a shared-state pipeline" in first.description
+    assert "Implemented parallel response processing" in first.description
+    assert "Developed a web application" in first.description
+
+    second = profile.projects[1]
+
+    assert second.name == "Another Project – Order Matching Engine"
+    assert second.technologies == [
+        "C++",
+        "STL",
+        "OOP",
+        "Algorithms",
+    ]
+    assert "Built a high-performance order matching engine" in (
+        second.description or ""
+    )
+
+def test_does_not_fabricate_absent_resume_sections() -> None:
+    blocks = (
+        _block(
+            "Bachelor of Engineering – Computer Science",
+            0,
+        ),
+        _block("Example University", 1),
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.EDUCATION,
+            heading="Education",
+            blocks=blocks,
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert profile.education
+    assert profile.experience == []
+    assert profile.projects == []
+    assert profile.certifications == []
+    assert profile.total_experience is None
+    assert profile.seniority is None
+
+
+def test_builder_is_deterministic_for_structured_entries() -> None:
+    education_blocks = (
+        _block(
+            "Bachelor of Engineering – Computer Science",
+            0,
+        ),
+        _block("Example University", 1),
+        _block("Aug 2023 - May 2027", 2),
+    )
+
+    project_blocks = (
+        _block(
+            "DataBridge – Data Intelligence Pipeline",
+            3,
+        ),
+        _block("Exposure: Python, SQL", 4),
+        _block("Built a data pipeline.", 5),
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.EDUCATION,
+            heading="Education",
+            blocks=education_blocks,
+        ),
+        ResumeSection(
+            section_type=ResumeSectionType.PROJECTS,
+            heading="Projects",
+            blocks=project_blocks,
+        ),
+    )
+
+    builder = ResumeProfileBuilder()
+
+    first = builder.build(resume, [], [])
+    second = builder.build(resume, [], [])
+
+    assert first.model_dump() == second.model_dump()
+
+
+def test_extracts_education_from_combined_degree_institution_block():
+    blocks = [
+        DocumentBlock(
+            text=(
+                "Bachelor of Engineering – Computer Science\n"
+                "Prof. Ram Meghe College of Engineering & Management, "
+                "SGBAU, Amravati, Maharashtra"
+            ),
+            block_type=DocumentBlockType.PARAGRAPH,
+            source=SourceLocation(block_index=0),
+        ),
+        DocumentBlock(
+            text="Aug 2023 - May 2027",
+            block_type=DocumentBlockType.PARAGRAPH,
+            source=SourceLocation(block_index=1),
+        ),
+        DocumentBlock(
+            text=(
+                "Average SGPA: 7.53/10 (67.61%)\n"
+                "Leadership: Final-Year Capstone Project Leader, "
+                "responsible for project planning, architecture, and "
+                "technical coordination."
+            ),
+            block_type=DocumentBlockType.PARAGRAPH,
+            source=SourceLocation(block_index=2),
+        ),
+    ]
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.EDUCATION,
+            heading="EDUCATION",
+            blocks=blocks,
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(
+        resume,
+        normalized_skills=[],
+        esco_results=[],
+    )
+
+    assert len(profile.education) == 1
+
+    education = profile.education[0]
+
+    assert education.degree == "Bachelor of Engineering"
+    assert education.field_of_study == "Computer Science"
+    assert (
+        education.institution
+        == "Prof. Ram Meghe College of Engineering & Management, "
+        "SGBAU, Amravati, Maharashtra"
+    )
+    assert education.start_date == "Aug 2023"
+    assert education.end_date == "May 2027"
+    assert education.description is not None
+    assert "Average SGPA: 7.53/10" in education.description
+    assert "Final-Year Capstone Project Leader" in education.description
+
+
+def test_extracts_contact_fields_from_header() -> None:
+    header = _block(
+        "RAGHUVIR V. ANTURKAR\n"
+        "raghuanturkar8@gmail.com | +91 74473 29517\n"
+        "LinkedIn | GitHub | Portfolio | Chandrapur, Maharashtra",
+        0,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.HEADER,
+            heading=None,
+            blocks=(header,),
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert profile.contact is not None
+    assert profile.contact.name == "RAGHUVIR V. ANTURKAR"
+    assert profile.contact.email == "raghuanturkar8@gmail.com"
+    assert profile.contact.phone == "+91 74473 29517"
+    assert profile.contact.location == "Chandrapur, Maharashtra"
+    assert profile.contact.linkedin is None
+    assert profile.contact.github is None
+    assert profile.contact.portfolio is None
+
+
+def test_extracts_profile_urls_from_header() -> None:
+    header = _block(
+        "Jane Doe\n"
+        "jane@example.com | +1 555 123 4567\n"
+        "https://linkedin.com/in/janedoe | "
+        "https://github.com/janedoe | "
+        "https://janedoe.dev | Austin, Texas",
+        0,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.HEADER,
+            heading=None,
+            blocks=(header,),
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert profile.contact is not None
+    assert profile.contact.name == "Jane Doe"
+    assert profile.contact.email == "jane@example.com"
+    assert profile.contact.phone == "+1 555 123 4567"
+    assert profile.contact.location == "Austin, Texas"
+    assert profile.contact.linkedin == "https://linkedin.com/in/janedoe"
+    assert profile.contact.github == "https://github.com/janedoe"
+    assert profile.contact.portfolio == "https://janedoe.dev"
+
+
+def test_contact_extraction_preserves_missing_fields_as_none() -> None:
+    header = _block(
+        "Jane Doe\n"
+        "jane@example.com",
+        0,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.HEADER,
+            heading=None,
+            blocks=(header,),
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert profile.contact is not None
+    assert profile.contact.name == "Jane Doe"
+    assert profile.contact.email == "jane@example.com"
+    assert profile.contact.phone is None
+    assert profile.contact.location is None
+    assert profile.contact.linkedin is None
+    assert profile.contact.github is None
+    assert profile.contact.portfolio is None
+
+
+def test_returns_no_contact_when_header_contains_no_contact_data() -> None:
+    header = _block(
+        "A short header without contact metadata.",
+        0,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.HEADER,
+            heading=None,
+            blocks=(header,),
+        )
+    )
+
+    profile = ResumeProfileBuilder().build(resume, [], [])
+
+    assert profile.contact is None
+
+
+def test_contact_extraction_is_deterministic() -> None:
+    header = _block(
+        "Jane Doe\n"
+        "jane@example.com | +1 555 123 4567\n"
+        "https://linkedin.com/in/janedoe | Austin, Texas",
+        0,
+    )
+
+    resume = _resume(
+        ResumeSection(
+            section_type=ResumeSectionType.HEADER,
+            heading=None,
+            blocks=(header,),
+        )
+    )
+
+    builder = ResumeProfileBuilder()
+
+    first = builder.build(resume, [], [])
+    second = builder.build(resume, [], [])
+
+    assert first.contact == second.contact

@@ -11,6 +11,11 @@ from backend.app.analysis.jd_structure import (
     StructuredJobDescription,
 )
 from backend.app.domain.analysis import AnalysisResult
+from backend.app.domain.matching import (
+    JobRequirement,
+    JobRequirementCategory,
+    JobRequirementType,
+)
 from backend.app.infrastructure.parsers.models import (
     DocumentBlock,
     DocumentBlockType,
@@ -374,3 +379,185 @@ def test_analysis_result_keeps_phase6_slots_empty() -> None:
 
     assert result.scoring is None
     assert result.xai is None
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for company / experience-range / education-field fixes
+# ---------------------------------------------------------------------------
+
+
+def _empty_document() -> StructuredJobDescription:
+    return StructuredJobDescription(
+        document_id="jd-regression",
+        sections=(),
+    )
+
+
+def test_extracts_company_from_header_text() -> None:
+    document = StructuredJobDescription(
+        document_id="jd-company",
+        sections=(
+            JDSection(
+                section_type=JDSectionType.HEADER,
+                heading=None,
+                blocks=(
+                    block("Data Engineer"),
+                    block("Company: NovaTech Solutions"),
+                ),
+            ),
+        ),
+    )
+
+    profile = JDProfileBuilder().build(
+        document,
+        [],
+        [],
+        [],
+    )
+
+    assert profile.company == "NovaTech Solutions"
+
+
+def test_extracts_experience_range_with_minimum_and_maximum() -> None:
+    requirements = [
+        JobRequirement(
+            requirement_id="req-exp",
+            requirement_type=JobRequirementType.REQUIRED,
+            category=JobRequirementCategory.EXPERIENCE,
+            canonical_name="experience",
+            text="Experience: 0–2 years",
+        )
+    ]
+
+    profile = JDProfileBuilder().build(
+        _empty_document(),
+        requirements,
+        [],
+        [],
+    )
+
+    assert profile.experience_requirements is not None
+    assert profile.experience_requirements.minimum_years == 0.0
+    assert profile.experience_requirements.maximum_years == 2.0
+
+
+def test_extracts_education_fields_of_study() -> None:
+    requirements = [
+        JobRequirement(
+            requirement_id="req-edu",
+            requirement_type=JobRequirementType.REQUIRED,
+            category=JobRequirementCategory.EDUCATION,
+            canonical_name="education",
+            text=(
+                "Bachelor's degree in Computer Science, Engineering, "
+                "or related field."
+            ),
+        )
+    ]
+
+    profile = JDProfileBuilder().build(
+        _empty_document(),
+        requirements,
+        [],
+        [],
+    )
+
+    assert profile.education_requirements is not None
+    assert profile.education_requirements.degrees == ["bachelor"]
+    assert profile.education_requirements.fields_of_study == [
+        "Computer Science",
+        "Engineering",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage for range-first and multi-degree parsing
+# ---------------------------------------------------------------------------
+
+
+def test_experience_range_takes_priority_over_plus_pattern() -> None:
+    """
+    When both a range ("0–2 years") and an unrelated "+" value appear in
+    the combined experience text, the range must win and populate both
+    minimum_years and maximum_years. The plus pattern is only a fallback.
+    """
+    requirements = [
+        JobRequirement(
+            requirement_id="req-exp-range-only",
+            requirement_type=JobRequirementType.REQUIRED,
+            category=JobRequirementCategory.EXPERIENCE,
+            canonical_name="experience",
+            text="0–2 years of experience",
+        )
+    ]
+
+    profile = JDProfileBuilder().build(
+        _empty_document(),
+        requirements,
+        [],
+        [],
+    )
+
+    assert profile.experience_requirements is not None
+    assert profile.experience_requirements.minimum_years == 0.0
+    assert profile.experience_requirements.maximum_years == 2.0
+
+
+def test_education_fields_of_study_ignores_related_field_phrase() -> None:
+    """
+    "or related field" is a catch-all phrase, not a literal field of study.
+    It must be stripped before splitting, and only the explicit fields
+    must be preserved in original casing.
+    """
+    requirements = [
+        JobRequirement(
+            requirement_id="req-edu-related",
+            requirement_type=JobRequirementType.REQUIRED,
+            category=JobRequirementCategory.EDUCATION,
+            canonical_name="education",
+            text=(
+                "Bachelor's degree in Computer Science, "
+                "Engineering, or related field."
+            ),
+        )
+    ]
+
+    profile = JDProfileBuilder().build(
+        _empty_document(),
+        requirements,
+        [],
+        [],
+    )
+
+    assert profile.education_requirements is not None
+    assert profile.education_requirements.degrees == ["bachelor"]
+    assert profile.education_requirements.fields_of_study == [
+        "Computer Science",
+        "Engineering",
+    ]
+
+def test_job_title_prefers_header_heading_over_metadata_blocks() -> None:
+    document = StructuredJobDescription(
+        document_id="jd-header-title",
+        sections=(
+            JDSection(
+                section_type=JDSectionType.HEADER,
+                heading="Data Engineer",
+                blocks=(
+                    block("Company: NovaTech Solutions"),
+                    block("Location: Remote — India"),
+                    block("Experience: 0–2 years"),
+                ),
+            ),
+        ),
+    )
+
+    profile = JDProfileBuilder().build(
+        document,
+        requirements=(),
+        normalized_skills=[],
+        esco_results=[],
+    )
+
+    assert profile.job_title == "Data Engineer"
+    assert profile.company == "NovaTech Solutions"

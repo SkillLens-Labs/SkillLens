@@ -430,3 +430,272 @@ def test_requirement_alignment_does_not_create_phase6_score_or_xai() -> None:
     assert not hasattr(alignment, "score")
     assert not hasattr(alignment, "xai")
     assert not hasattr(alignment, "ranking")
+
+
+# ---------------------------------------------------------------------------
+# Experience requirement concept coverage tests
+# ---------------------------------------------------------------------------
+
+
+def _experience_requirement(
+    requirement_id: str,
+    text: str,
+) -> JobRequirement:
+    return JobRequirement(
+        requirement_id=requirement_id,
+        text=text,
+        requirement_type=JobRequirementType.REQUIRED,
+        category=JobRequirementCategory.EXPERIENCE,
+        evidence=[_job_evidence(text)],
+        confidence=_confidence(),
+    )
+
+
+def _sections_with(
+    section_type: ResumeSectionType,
+    heading: str,
+    *texts: str,
+) -> ResumeSection:
+    return ResumeSection(
+        section_type=section_type,
+        heading=heading,
+        blocks=tuple(
+            _resume_block(text, section_type)
+            for text in texts
+        ),
+    )
+
+
+def test_project_evidence_covers_all_concepts_is_matched() -> None:
+    """
+    A. Project evidence.
+
+    The requirement mentions ETL/ELT, data pipelines, and data validation.
+    A single PROJECTS block evidences all three concepts, so the requirement
+    must be MATCHED and the rationale must attribute the evidence to the
+    project section rather than to professional experience or skills.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.PROJECTS,
+                "Projects",
+                (
+                    "Built an ETL pipeline with data validation "
+                    "for the analytics team."
+                ),
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-data-eng",
+        "Experience with ETL/ELT, data pipelines, and data validation.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    alignment = result[0]
+
+    assert alignment.status == RequirementMatchStatus.MATCHED
+    assert "project_experience" in alignment.rationale
+    assert any(
+        evidence.source_type == EvidenceSourceType.RESUME
+        for evidence in alignment.evidence
+    )
+
+
+def test_project_evidence_covers_some_concepts_is_partial() -> None:
+    """
+    B. Partial project evidence.
+
+    The requirement mentions ETL, data pipelines, and data validation.
+    The PROJECTS block only evidences ETL and data pipelines, so the
+    requirement must be PARTIAL rather than MATCHED.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.PROJECTS,
+                "Projects",
+                "Built an ETL pipeline for the analytics team.",
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-data-eng",
+        "Experience with ETL/ELT, data pipelines, and data validation.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    assert result[0].status == RequirementMatchStatus.PARTIAL
+
+
+def test_skills_only_evidence_is_matched() -> None:
+    """
+    C. Skills-only evidence.
+
+    Docker and Linux are declared only inside the SKILLS section. Concept
+    coverage must still be complete, and the rationale must reflect that
+    the evidence came from declared skills rather than experience or
+    projects.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.SKILLS,
+                "Skills",
+                "Docker, Linux",
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-platform",
+        "Experience with Docker and Linux.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    alignment = result[0]
+
+    assert alignment.status == RequirementMatchStatus.MATCHED
+    assert "declared_skill" in alignment.rationale
+
+
+def test_mixed_evidence_across_sections_is_matched() -> None:
+    """
+    D. Mixed evidence.
+
+    One concept is evidenced by PROJECTS, another by SKILLS. Coverage is
+    complete but spans multiple section types, so the rationale must be the
+    mixed-evidence variant.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.PROJECTS,
+                "Projects",
+                "Built an ETL pipeline.",
+            ),
+            _sections_with(
+                ResumeSectionType.SKILLS,
+                "Skills",
+                "Docker, Linux",
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-mixed",
+        "Experience with ETL pipelines, Docker, and Linux.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    alignment = result[0]
+
+    assert alignment.status == RequirementMatchStatus.MATCHED
+    assert "mixed_resume_evidence" in alignment.rationale
+
+
+def test_experience_requirement_with_no_evidence_is_unknown() -> None:
+    """
+    E. No evidence.
+
+    No resume section contains any of the required concepts. The status
+    must remain UNKNOWN, matching the pre-existing unknown behavior.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.EXPERIENCE,
+                "Experience",
+                "Front-end developer focused on accessibility.",
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-data-eng",
+        "Experience with ETL/ELT, data pipelines, and data validation.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    assert result[0].status == RequirementMatchStatus.UNKNOWN
+
+
+def test_professional_experience_takes_precedence_in_rationale() -> None:
+    """
+    F. Professional experience takes precedence.
+
+    Both EXPERIENCE and PROJECTS evidence the same concepts. Coverage is
+    complete, but because EXPERIENCE is present, the rationale must
+    attribute the evidence to professional experience rather than to
+    projects or skills.
+    """
+    resume = _resume_structure(
+        (
+            _sections_with(
+                ResumeSectionType.EXPERIENCE,
+                "Experience",
+                "Maintained an ETL pipeline with data validation.",
+            ),
+            _sections_with(
+                ResumeSectionType.PROJECTS,
+                "Projects",
+                "Built an ETL pipeline.",
+            ),
+        )
+    )
+
+    requirement = _experience_requirement(
+        "req-data-eng",
+        "Experience with ETL/ELT, data pipelines, and data validation.",
+    )
+
+    result = RequirementAligner().align(
+        [requirement],
+        [],
+        [],
+        [],
+        resume,
+    )
+
+    alignment = result[0]
+
+    assert alignment.status == RequirementMatchStatus.MATCHED
+    assert "professional_experience" in alignment.rationale

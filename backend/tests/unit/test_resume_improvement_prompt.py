@@ -320,13 +320,13 @@ def test_resume_only_prompt_contains_verified_resume_facts():
 def test_resume_only_prompt_contains_quality_ats_language_career_and_recommendations():
     prompt = ResumeImprovementPromptGenerator().generate(_base_result())
 
-    assert "CURRENT RESUME QUALITY" in prompt
+    assert "RESUME QUALITY" in prompt
     assert "82.0/100" in prompt
-    assert "ATS ANALYSIS" in prompt
+    assert "ATS COMPATIBILITY" in prompt
     assert "88.0/100" in prompt
     assert "LANGUAGE QUALITY" in prompt
     assert "91.0/100" in prompt
-    assert "CAREER FIT" in prompt
+    assert "CAREER POSITIONING" in prompt
     assert "Data Analyst" in prompt
     assert "RECOMMENDATIONS" in prompt
     assert "Power BI" in prompt
@@ -346,8 +346,8 @@ def test_prompt_contains_strict_factuality_rules():
     assert "Do not invent employers." in prompt
     assert "Do not invent job titles." in prompt
     assert "Do not invent dates." in prompt
-    assert "Do not invent skills." in prompt
-    assert "Do not invent achievements or metrics." in prompt
+    assert "Do not invent skills or technologies." in prompt
+    assert "Do not invent achievements, responsibilities, or metrics." in prompt
     assert "Do not invent certifications." in prompt
     assert "Do not invent education or experience." in prompt
 
@@ -426,7 +426,7 @@ def test_resume_jd_prompt_contains_target_job_and_matching_information():
         )
     )
 
-    assert "JOB MATCH ANALYSIS" in prompt
+    assert "TARGET JOB" in prompt
     assert "Data Analyst" in prompt
     assert "Target Analytics" in prompt
     assert "72.0/100" in prompt
@@ -452,8 +452,8 @@ def test_prompt_handles_missing_optional_components():
 
     assert "CANDIDATE FACTS" in prompt
     assert "STRICT FACTUALITY RULES" in prompt
-    assert "CURRENT RESUME QUALITY" not in prompt
-    assert "ATS ANALYSIS" not in prompt
+    assert "RESUME QUALITY" not in prompt
+    assert "ATS COMPATIBILITY" not in prompt
     assert "LANGUAGE QUALITY" not in prompt
     assert "CAREER FIT" not in prompt
     assert "RECOMMENDATIONS" not in prompt
@@ -462,5 +462,5 @@ def test_prompt_handles_missing_optional_components():
 def test_generator_exposes_stable_engine_version():
     assert (
         ResumeImprovementPromptGenerator.ENGINE_VERSION
-        == "phase9-resume-improvement-prompt-v1"
+        == "phase9-resume-improvement-prompt-v2"
     )

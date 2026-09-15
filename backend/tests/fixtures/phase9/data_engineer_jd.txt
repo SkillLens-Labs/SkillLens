@@ -1,0 +1,126 @@
+DATA ENGINEER — SOFTWARE & DATA PLATFORM
+
+Company: NovaTech Solutions
+Location: Remote — India
+Employment Type: Full-time
+Experience: 0–2 years
+
+ABOUT THE ROLE
+
+NovaTech Solutions is looking for a Data Engineer to join its Software & Data Platform team. The role involves designing reliable data pipelines, developing backend services for data-intensive applications, working with relational and NoSQL databases, and supporting analytics and machine learning workflows.
+
+The ideal candidate should have strong programming fundamentals, practical experience with Python and SQL, an understanding of data structures and algorithms, and the ability to build maintainable, production-oriented software.
+
+KEY RESPONSIBILITIES
+
+• Design, develop, test, and maintain scalable data pipelines for collecting, transforming, validating, and delivering structured and semi-structured data.
+
+• Build ETL and ELT workflows using Python, SQL, and modern data-processing tools.
+
+• Develop REST APIs and backend services that expose reliable data and analytics functionality.
+
+• Work with relational databases such as PostgreSQL and MySQL and understand database design, indexing, normalization, and query optimization.
+
+• Work with NoSQL databases such as MongoDB when appropriate for application requirements.
+
+• Clean, transform, validate, and analyze datasets to ensure data quality and consistency.
+
+• Implement efficient data structures and algorithms for processing large datasets.
+
+• Collaborate with software engineers, analysts, and data scientists to understand data requirements and deliver reusable data solutions.
+
+• Write unit tests and integration tests for data-processing pipelines and backend services.
+
+• Monitor pipeline reliability, investigate failures, and improve performance and maintainability.
+
+• Use Git-based version control and follow clean-code, documentation, and code-review practices.
+
+• Participate in technical discussions and contribute to architecture and engineering decisions.
+
+REQUIRED QUALIFICATIONS
+
+• Bachelor's degree or equivalent education in Computer Science, Information Technology, Software Engineering, Data Engineering, or a related technical field.
+
+• Strong proficiency in Python.
+
+• Strong proficiency in SQL and relational database concepts.
+
+• Good understanding of data structures and algorithms.
+
+• Understanding of ETL/ELT concepts and data pipeline architecture.
+
+• Experience developing REST APIs or backend services.
+
+• Familiarity with Git and collaborative software development workflows.
+
+• Understanding of software engineering principles including modular design, testing, debugging, and documentation.
+
+• Strong problem-solving and analytical skills.
+
+PREFERRED QUALIFICATIONS
+
+• Experience with FastAPI, Flask, or Django.
+
+• Experience with PostgreSQL, MySQL, or other relational database systems.
+
+• Experience with MongoDB or another NoSQL database.
+
+• Familiarity with Pandas and NumPy.
+
+• Exposure to Apache Spark, Apache Airflow, Kafka, or other modern data engineering technologies.
+
+• Familiarity with Docker and containerized applications.
+
+• Understanding of cloud platforms such as AWS, Microsoft Azure, or Google Cloud Platform.
+
+• Exposure to data visualization or business intelligence tools.
+
+• Knowledge of machine learning workflows and model-serving systems.
+
+• Experience working with Redis or other caching technologies.
+
+• Experience building production-quality projects or data-intensive applications.
+
+TECHNICAL SKILLS
+
+Programming: Python, SQL
+
+Backend: FastAPI, Flask, Django, REST APIs
+
+Databases: PostgreSQL, MySQL, MongoDB, Redis
+
+Data Processing: Pandas, NumPy, Apache Spark
+
+Data Engineering: ETL, ELT, Data Pipelines, Data Validation
+
+Development Tools: Git, Docker, Linux
+
+Cloud: AWS, Azure, Google Cloud Platform
+
+Testing: Pytest, Unit Testing, Integration Testing
+
+Other: Data Structures, Algorithms, System Design, API Development
+
+EDUCATION
+
+Bachelor's degree in Computer Science, Information Technology, Software Engineering, Data Engineering, or a related field.
+
+WHAT WE VALUE
+
+• Strong engineering fundamentals and attention to detail.
+
+• Ability to learn unfamiliar technologies quickly.
+
+• Clear technical communication and documentation.
+
+• Ability to reason about data quality, performance, and reliability.
+
+• Practical project experience demonstrating software engineering ability.
+
+• Ownership, curiosity, and a problem-solving mindset.
+
+• Ability to work effectively in a remote engineering environment.
+
+APPLICATION
+
+Candidates should submit a current resume highlighting relevant technical skills, projects, education, and practical software or data engineering experience.

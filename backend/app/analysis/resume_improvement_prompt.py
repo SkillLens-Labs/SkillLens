@@ -6,17 +6,19 @@ from backend.app.domain.analysis import AnalysisResult
 class ResumeImprovementPromptGenerator:
     """
     Deterministically generates a plain-text prompt that can be copied into
-    an external GenAI tool to improve/customize a resume.
+    an external GenAI tool to improve or customize a resume.
 
-    This component is presentation/orchestration logic only. It does not
-    perform independent resume analysis and does not call an LLM.
+    This component is presentation/orchestration logic only. It consumes the
+    canonical AnalysisResult and does not perform independent analysis or
+    call an LLM.
     """
 
-    ENGINE_VERSION = "phase9-resume-improvement-prompt-v1"
+    ENGINE_VERSION = "phase9-resume-improvement-prompt-v2"
 
     def generate(self, result: AnalysisResult) -> str:
         sections: list[str] = []
 
+        sections.extend(self._task_section(result))
         sections.extend(self._candidate_section(result))
         sections.extend(self._quality_section(result))
         sections.extend(self._ats_section(result))
@@ -26,66 +28,120 @@ class ResumeImprovementPromptGenerator:
         sections.extend(self._recommendations_section(result))
         sections.extend(self._xai_section(result))
         sections.extend(self._factuality_section())
-        sections.extend(self._output_section())
+        sections.extend(self._output_section(result))
 
         return "\n".join(sections).strip() + "\n"
+
+    def _task_section(self, result: AnalysisResult) -> list[str]:
+        if result.job_profile is not None:
+            return [
+                "TASK",
+                (
+                    "Improve and tailor the candidate's resume for the target "
+                    "job using the verified resume evidence and job-match "
+                    "analysis below."
+                ),
+                (
+                    "Prioritize the highest-impact requirements and gaps while "
+                    "preserving factual accuracy."
+                ),
+                "",
+            ]
+
+        return [
+            "TASK",
+            (
+                "Improve the candidate's resume using the verified resume "
+                "evidence and analysis below."
+            ),
+            (
+                "Prioritize resume quality, ATS compatibility, language "
+                "clarity, and career positioning while preserving factual "
+                "accuracy."
+            ),
+            "",
+        ]
 
     def _candidate_section(self, result: AnalysisResult) -> list[str]:
         resume = result.resume_profile
         contact = resume.contact
 
-        lines = [
-            "CANDIDATE FACTS",
-            f"Candidate name: {self._value(contact, 'name')}",
-            f"Candidate email: {self._value(contact, 'email')}",
-            f"Candidate summary: {resume.candidate_summary or 'Not provided'}",
-            f"Seniority: {resume.seniority or 'Not provided'}",
-            (
-                "Total experience: "
-                f"{resume.total_experience if resume.total_experience is not None else 'Not provided'}"
-            ),
-            f"Domains: {self._join(resume.domains)}",
-            f"Skills: {self._skills(resume.skills)}",
-        ]
+        lines = ["CANDIDATE FACTS"]
+
+        self._append_value(lines, "Candidate name", contact, "name")
+        self._append_value(lines, "Candidate email", contact, "email")
+        self._append_nonempty(lines, "Candidate summary", resume.candidate_summary)
+        self._append_nonempty(lines, "Seniority", resume.seniority)
+        if resume.total_experience is not None:
+            lines.append(f"Total experience: {resume.total_experience}")
+        self._append_joined(lines, "Domains", resume.domains)
+        self._append_skills(lines, resume.skills)
 
         if resume.education:
             lines.append("Education:")
             for item in resume.education:
-                lines.append(
-                    "- "
-                    f"{self._value(item, 'degree')} "
-                    f"in {self._value(item, 'field_of_study')} "
-                    f"at {self._value(item, 'institution')}"
-                )
+                degree = self._attr(item, "degree")
+                field = self._attr(item, "field_of_study")
+                institution = self._attr(item, "institution")
+
+                education_parts = [
+                    str(value)
+                    for value in (degree, field, institution)
+                    if value not in (None, "")
+                ]
+
+                if education_parts:
+                    lines.append(f"- {' in '.join(education_parts[:2])}"
+                                 + (
+                                     f" at {institution}"
+                                     if institution not in (None, "")
+                                     else ""
+                                 ))
 
         if resume.experience:
             lines.append("Experience:")
             for item in resume.experience:
-                lines.append(
-                    "- "
-                    f"{self._value(item, 'role')} at "
-                    f"{self._value(item, 'company')}: "
-                    f"{self._value(item, 'description')}"
-                )
+                role = self._attr(item, "role")
+                company = self._attr(item, "company")
+                description = self._attr(item, "description")
+
+                label = self._combine(role, company, separator=" at ")
+                if description:
+                    label = f"{label}: {description}" if label else str(description)
+
+                if label:
+                    lines.append(f"- {label}")
 
         if resume.projects:
             lines.append("Projects:")
             for item in resume.projects:
-                lines.append(
-                    "- "
-                    f"{self._value(item, 'name')}: "
-                    f"{self._value(item, 'description')}; "
-                    f"technologies: {self._join(self._attr(item, 'technologies', []))}"
-                )
+                name = self._attr(item, "name")
+                description = self._attr(item, "description")
+                technologies = self._attr(item, "technologies", [])
+
+                parts: list[str] = []
+                if name:
+                    parts.append(str(name))
+                if description:
+                    parts.append(str(description))
+                if technologies:
+                    parts.append(
+                        f"technologies: {self._join(technologies, fallback='')}"
+                    )
+
+                if parts:
+                    lines.append(f"- {'; '.join(parts)}")
 
         if resume.certifications:
             lines.append("Certifications:")
             for item in resume.certifications:
-                lines.append(
-                    "- "
-                    f"{self._value(item, 'name')} "
-                    f"({self._value(item, 'issuer')})"
-                )
+                name = self._attr(item, "name")
+                issuer = self._attr(item, "issuer")
+
+                if name and issuer:
+                    lines.append(f"- {name} ({issuer})")
+                elif name:
+                    lines.append(f"- {name}")
 
         lines.append("")
         return lines
@@ -96,7 +152,7 @@ class ResumeImprovementPromptGenerator:
             return []
 
         lines = [
-            "CURRENT RESUME QUALITY",
+            "RESUME QUALITY",
             f"Overall score: {quality.overall_score:.1f}/100",
         ]
 
@@ -106,7 +162,7 @@ class ResumeImprovementPromptGenerator:
                 f"{finding.explanation}"
             )
             if finding.recommendation:
-                lines.append(f"  Recommendation: {finding.recommendation}")
+                lines.append(f"  Action: {finding.recommendation}")
 
         lines.append("")
         return lines
@@ -117,7 +173,7 @@ class ResumeImprovementPromptGenerator:
             return []
 
         lines = [
-            "ATS ANALYSIS",
+            "ATS COMPATIBILITY",
             f"Overall score: {ats.overall_score:.1f}/100",
         ]
 
@@ -127,7 +183,7 @@ class ResumeImprovementPromptGenerator:
                 f"{finding.explanation}"
             )
             if finding.recommendation:
-                lines.append(f"  Recommendation: {finding.recommendation}")
+                lines.append(f"  Action: {finding.recommendation}")
 
         lines.append("")
         return lines
@@ -154,12 +210,15 @@ class ResumeImprovementPromptGenerator:
                 f"- [{issue.severity}] {issue.issue_type}: "
                 f"{issue.title} — {issue.explanation}"
             )
+
             if issue.original_text:
                 lines.append(f"  Original: {issue.original_text}")
+
             if issue.suggested_text:
                 lines.append(f"  Suggested: {issue.suggested_text}")
+
             if issue.recommendation:
-                lines.append(f"  Recommendation: {issue.recommendation}")
+                lines.append(f"  Action: {issue.recommendation}")
 
         lines.append("")
         return lines
@@ -169,14 +228,32 @@ class ResumeImprovementPromptGenerator:
         if career is None:
             return []
 
-        lines = [
-            "CAREER FIT",
-            f"Inferred profile: {career.inferred_profile or 'Not provided'}",
-            f"Experience level: {career.experience_level}",
-            f"Primary domains: {self._join(career.primary_domains)}",
-            f"Secondary domains: {self._join(career.secondary_domains)}",
-            f"Transferable skills: {self._join(career.transferable_skills)}",
-        ]
+        lines = ["CAREER POSITIONING"]
+
+        self._append_nonempty(
+            lines,
+            "Inferred profile",
+            career.inferred_profile,
+        )
+
+        if career.experience_level:
+            lines.append(f"Experience level: {career.experience_level}")
+
+        self._append_joined(
+            lines,
+            "Primary domains",
+            career.primary_domains,
+        )
+        self._append_joined(
+            lines,
+            "Secondary domains",
+            career.secondary_domains,
+        )
+        self._append_joined(
+            lines,
+            "Transferable skills",
+            career.transferable_skills,
+        )
 
         if career.role_fit:
             lines.append("Role fit:")
@@ -186,19 +263,15 @@ class ResumeImprovementPromptGenerator:
                     f"({role.direction}) — {role.rationale}"
                 )
 
-        if career.career_directions:
-            lines.append("Career directions:")
-            for direction in career.career_directions:
-                lines.append(
-                    f"- {direction.role}: {direction.fit_score:.1f}/100 "
-                    f"({direction.direction}) — {direction.rationale}"
-                )
-
         if career.limitations:
-            lines.append(f"Limitations: {self._join(career.limitations)}")
+            lines.append("Limitations:")
+            for limitation in career.limitations:
+                lines.append(f"- {limitation}")
 
         if career.risks:
-            lines.append(f"Risks: {self._join(career.risks)}")
+            lines.append("Risks:")
+            for risk in career.risks:
+                lines.append(f"- {risk}")
 
         lines.append("")
         return lines
@@ -209,77 +282,87 @@ class ResumeImprovementPromptGenerator:
             return []
 
         analysis = result.skill_analysis
+        lines = ["TARGET JOB"]
 
-        lines = [
-            "JOB MATCH ANALYSIS",
-            f"Target job: {job.job_title or 'Not provided'}",
-            f"Target company: {job.company or 'Not provided'}",
-        ]
+        self._append_nonempty(lines, "Role", job.job_title)
+        self._append_nonempty(lines, "Company", job.company)
+        self._append_nonempty(lines, "Summary", job.summary)
 
         if result.scoring is not None:
-            lines.append(
-                f"Overall fit score: {result.scoring.overall_score:.1f}/100"
-            )
-            lines.append(
-                f"Skill score: {result.scoring.skill_score:.1f}/100"
-            )
-            lines.append(
-                "Required skill score: "
-                f"{result.scoring.required_skill_score:.1f}/100"
-            )
-            lines.append(
-                "Preferred skill score: "
-                f"{result.scoring.preferred_skill_score:.1f}/100"
-            )
-            lines.append(
-                f"Experience alignment: "
-                f"{result.scoring.experience_score:.1f}/100"
-            )
-            lines.append(
-                f"Education alignment: "
-                f"{result.scoring.education_score:.1f}/100"
-            )
-            lines.append(
-                f"Domain alignment: "
-                f"{result.scoring.domain_score:.1f}/100"
+            scoring = result.scoring
+            lines.extend(
+                [
+                    "",
+                    "MATCH AND SCORING",
+                    f"Overall fit score: {scoring.overall_score:.1f}/100",
+                    f"Skill score: {scoring.skill_score:.1f}/100",
+                    (
+                        "Required skill score: "
+                        f"{scoring.required_skill_score:.1f}/100"
+                    ),
+                    (
+                        "Preferred skill score: "
+                        f"{scoring.preferred_skill_score:.1f}/100"
+                    ),
+                    f"Experience alignment: {scoring.experience_score:.1f}/100",
+                    f"Education alignment: {scoring.education_score:.1f}/100",
+                    f"Domain alignment: {scoring.domain_score:.1f}/100",
+                ]
             )
 
-        lines.extend(
-            [
-                f"Required skills: {self._join(job.required_skills)}",
-                f"Preferred skills: {self._join(job.preferred_skills)}",
-                f"Matched skills: {self._join(analysis.matched_skills)}",
-                f"Partial matches: {self._join(analysis.partial_matches)}",
-                f"Missing skills: {self._join(analysis.missing_skills)}",
-                (
-                    "Transferable skills: "
-                    f"{self._join(analysis.transferable_skills)}"
-                ),
-            ]
+        self._append_joined(
+            lines,
+            "Required skills",
+            job.required_skills,
+        )
+        self._append_joined(
+            lines,
+            "Preferred skills",
+            job.preferred_skills,
+        )
+        self._append_joined(
+            lines,
+            "Matched skills",
+            analysis.matched_skills,
+        )
+        self._append_joined(
+            lines,
+            "Partial matches",
+            analysis.partial_matches,
+        )
+        self._append_joined(
+            lines,
+            "Missing skills",
+            analysis.missing_skills,
+        )
+        self._append_joined(
+            lines,
+            "Transferable skills",
+            analysis.transferable_skills,
         )
 
-        if result.matching is not None:
-            lines.append("Requirement alignments:")
+        if result.matching is not None and result.matching.requirement_alignments:
+            lines.append("Requirement alignment:")
             for alignment in result.matching.requirement_alignments:
+                rationale = (
+                    f" — {alignment.rationale}"
+                    if alignment.rationale
+                    else ""
+                )
                 lines.append(
-                    f"- {alignment.requirement_id}: {alignment.status}"
-                    + (
-                        f" — {alignment.rationale}"
-                        if alignment.rationale
-                        else ""
-                    )
+                    f"- {alignment.status}{rationale}"
                 )
 
         if result.scoring is not None:
             if result.scoring.penalties:
-                lines.append("Scoring penalties:")
+                lines.append("Score penalties:")
                 for penalty in result.scoring.penalties:
                     lines.append(
                         f"- {penalty.reason}: {penalty.value:+.1f}"
                     )
 
             if result.scoring.bonuses:
-                lines.append("Scoring bonuses:")
+                lines.append("Score bonuses:")
                 for bonus in result.scoring.bonuses:
                     lines.append(
                         f"- {bonus.reason}: {bonus.value:+.1f}"
@@ -297,12 +380,21 @@ class ResumeImprovementPromptGenerator:
 
         lines = ["RECOMMENDATIONS"]
 
-        for recommendation in result.recommendations:
+        ordered = sorted(
+            result.recommendations,
+            key=lambda recommendation: (
+                -recommendation.priority_score,
+                recommendation.recommendation_id,
+            ),
+        )
+
+        for recommendation in ordered:
             target = (
-                f" — target skill: {recommendation.target_skill}"
+                f" | Target skill: {recommendation.target_skill}"
                 if recommendation.target_skill
                 else ""
             )
+
             lines.append(
                 f"- [{recommendation.priority}] "
                 f"{recommendation.type}: "
@@ -326,17 +418,27 @@ class ResumeImprovementPromptGenerator:
         if xai is None:
             return []
 
-        lines = [
-            "EVIDENCE-BACKED EXPLANATIONS",
-            f"Overall explanation: {xai.overall_explanation}",
-            f"Score explanation: {xai.score_explanation}",
-        ]
+        lines = ["EVIDENCE AND REASONING"]
+
+        if xai.overall_explanation:
+            lines.append(
+                f"Overall: {xai.overall_explanation}"
+            )
+
+        if xai.score_explanation:
+            lines.append(
+                f"Scoring: {xai.score_explanation}"
+            )
 
         if xai.strengths:
-            lines.append(f"Strengths: {self._join(xai.strengths)}")
+            lines.append(
+                f"Strengths: {self._join(xai.strengths)}"
+            )
 
         if xai.weaknesses:
-            lines.append(f"Weaknesses: {self._join(xai.weaknesses)}")
+            lines.append(
+                f"Weaknesses: {self._join(xai.weaknesses)}"
+            )
 
         for explanation in xai.matched_skill_explanations:
             lines.append(
@@ -365,54 +467,161 @@ class ResumeImprovementPromptGenerator:
             "Do not invent employers.",
             "Do not invent job titles.",
             "Do not invent dates.",
-            "Do not invent skills.",
-            "Do not invent achievements or metrics.",
+            "Do not invent skills or technologies.",
+            "Do not invent achievements, responsibilities, or metrics.",
             "Do not invent certifications.",
             "Do not invent education or experience.",
-            "Preserve all verified factual information from the source resume.",
+            "Do not claim the candidate performed work that is not evidenced.",
+            (
+                "Preserve all verified factual information from the source "
+                "resume."
+            ),
             "Clearly distinguish suggestions from verified facts.",
-            "Only strengthen wording when the underlying claim is supported by the resume.",
+            (
+                "Only strengthen wording when the underlying claim is "
+                "supported by the resume."
+            ),
+            (
+                "If important information is missing, identify it for the "
+                "candidate instead of fabricating it."
+            ),
             "",
         ]
 
-    def _output_section(self) -> list[str]:
-        return [
-            "OUTPUT",
+    def _output_section(self, result: AnalysisResult) -> list[str]:
+        lines = [
+            "EXPECTED OUTPUT",
+            "Produce the following:",
+            "1. A revised resume preserving all verified facts.",
+            "2. Clear, concise, ATS-compatible wording.",
             (
-                "Improve and customize the resume using the evidence above. "
-                "Preserve factual accuracy, prioritize the highest-impact "
-                "issues, improve clarity and ATS compatibility, and tailor "
-                "wording to the target role when a job description is "
-                "available."
+                "3. Stronger achievement-oriented wording only where the "
+                "source supports the claim."
+            ),
+            (
+                "4. A short list of missing information the candidate should "
+                "provide if it would materially strengthen the resume."
             ),
         ]
 
+        if result.job_profile is not None:
+            lines.extend(
+                [
+                    (
+                        "5. JD-specific tailoring that prioritizes relevant "
+                        "required skills and responsibilities."
+                    ),
+                    (
+                        "6. A concise list of the most important JD-related "
+                        "changes made."
+                    ),
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    (
+                        "5. Career-positioning improvements where supported "
+                        "by the evidence."
+                    ),
+                    "6. A concise list of the most important changes made.",
+                ]
+            )
+
+        lines.extend(
+            [
+                "",
+                (
+                    "Do not treat the SkillLens scores or heuristic estimates "
+                    "as facts beyond what they explicitly represent."
+                ),
+            ]
+        )
+
+        return lines
+
     @staticmethod
-    def _attr(obj: object, name: str, default: object = None) -> object:
+    def _attr(
+        obj: object,
+        name: str,
+        default: object = None,
+    ) -> object:
         return getattr(obj, name, default)
 
     @classmethod
-    def _value(cls, obj: object, name: str) -> str:
+    def _append_value(
+        cls,
+        lines: list[str],
+        label: str,
+        obj: object,
+        name: str,
+    ) -> None:
         value = cls._attr(obj, name)
+        cls._append_nonempty(lines, label, value)
+
+    @staticmethod
+    def _append_nonempty(
+        lines: list[str],
+        label: str,
+        value: object,
+    ) -> None:
         if value is None or value == "":
-            return "Not provided"
-        return str(value)
+            return
+        lines.append(f"{label}: {value}")
 
     @staticmethod
-    def _join(values: object) -> str:
+    def _append_joined(
+        lines: list[str],
+        label: str,
+        values: object,
+    ) -> None:
         if not values:
-            return "Not provided"
-        return ", ".join(str(value) for value in values)
+            return
 
-    @staticmethod
-    def _skills(skills: object) -> str:
+        rendered = ", ".join(str(value) for value in values)
+        if rendered:
+            lines.append(f"{label}: {rendered}")
+
+    @classmethod
+    def _append_skills(
+        cls,
+        lines: list[str],
+        skills: object,
+    ) -> None:
         if not skills:
-            return "Not provided"
+            return
 
         names: list[str] = []
         for skill in skills:
             display_name = getattr(skill, "display_name", None)
             canonical_name = getattr(skill, "canonical_name", None)
-            names.append(str(display_name or canonical_name or skill))
+            value = display_name or canonical_name or skill
+            if value:
+                names.append(str(value))
 
-        return ", ".join(names)
+        if names:
+            lines.append(f"Skills: {', '.join(names)}")
+
+    @staticmethod
+    def _join(
+        values: object,
+        fallback: str = "Not provided",
+    ) -> str:
+        if not values:
+            return fallback
+        return ", ".join(str(value) for value in values)
+
+    @staticmethod
+    def _combine(
+        first: object,
+        second: object,
+        *,
+        separator: str,
+    ) -> str:
+        if first and second:
+            return f"{first}{separator}{second}"
+        if first:
+            return str(first)
+        if second:
+            return str(second)
+        return ""

@@ -140,3 +140,46 @@ def test_interpreter_preserves_document_id() -> None:
     result = JDStructureInterpreter().interpret(document)
 
     assert result.document_id == "job-001"
+
+def test_first_unknown_heading_is_treated_as_job_title_header() -> None:
+    document = make_document(
+        make_block("Data Engineer", DocumentBlockType.HEADING, 0),
+        make_block(
+            "Company: NovaTech Solutions",
+            DocumentBlockType.PARAGRAPH,
+            1,
+        ),
+        make_block(
+            "Experience: 0–2 years",
+            DocumentBlockType.PARAGRAPH,
+            2,
+        ),
+        make_block(
+            "Required Qualifications",
+            DocumentBlockType.HEADING,
+            3,
+        ),
+        make_block(
+            "Strong Python programming skills.",
+            DocumentBlockType.BULLET,
+            4,
+        ),
+    )
+
+    result = JDStructureInterpreter().interpret(document)
+
+    assert [
+        section.section_type
+        for section in result.sections
+    ] == [
+        JDSectionType.HEADER,
+        JDSectionType.REQUIRED_QUALIFICATIONS,
+    ]
+
+    header = result.sections_of(JDSectionType.HEADER)[0]
+
+    assert header.heading == "Data Engineer"
+    assert [block.text for block in header.blocks] == [
+        "Company: NovaTech Solutions",
+        "Experience: 0–2 years",
+    ]

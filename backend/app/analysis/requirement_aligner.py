@@ -30,6 +30,73 @@ class RequirementAligner:
 
     ENGINE_VERSION = "phase5-requirement-aligner-v1"
 
+    _EXPERIENCE_EVIDENCE_SECTIONS = (
+        ResumeSectionType.EXPERIENCE,
+        ResumeSectionType.PROJECTS,
+        ResumeSectionType.SKILLS,
+    )
+
+    _EXPERIENCE_CONCEPT_ALIASES = {
+        "etl": {"etl", "elt", "etl/elt"},
+        "data_pipelines": {
+            "data pipeline",
+            "data pipelines",
+            "pipeline",
+            "pipelines",
+        },
+        "data_validation": {
+            "data validation",
+            "validation",
+            "validate",
+        },
+        "sql": {"sql", "postgresql", "mysql", "sqlite"},
+        "relational_databases": {
+            "relational database",
+            "relational databases",
+            "postgresql",
+            "mysql",
+            "sqlite",
+        },
+        "rest_backend": {
+            "rest api",
+            "rest apis",
+            "rest",
+            "backend",
+            "fastapi",
+            "flask",
+            "django",
+        },
+        "docker_linux": {
+            "docker",
+            "linux",
+        },
+        "testing": {
+            "testing",
+            "test",
+            "tests",
+            "pytest",
+            "unittest",
+        },
+        "data_structures_algorithms": {
+            "data structures",
+            "algorithms",
+            "algorithm",
+            "stl",
+        },
+        "system_design": {
+            "system design",
+            "architecture",
+        },
+        "api_development": {
+            "api",
+            "apis",
+            "api development",
+            "rest api",
+            "rest apis",
+        },
+        "python": {"python"},
+    }
+
     def align(
         self,
         requirements: list[JobRequirement] | tuple[JobRequirement, ...],
@@ -168,10 +235,13 @@ class RequirementAligner:
         requirement: JobRequirement,
         structured_resume: StructuredResume,
     ) -> RequirementAlignment:
+        if requirement.category == JobRequirementCategory.EXPERIENCE:
+            return self._align_experience_requirement(
+                requirement=requirement,
+                structured_resume=structured_resume,
+            )
+
         section_types = {
-            JobRequirementCategory.EXPERIENCE: (
-                ResumeSectionType.EXPERIENCE,
-            ),
             JobRequirementCategory.EDUCATION: (
                 ResumeSectionType.EDUCATION,
             ),
@@ -267,6 +337,212 @@ class RequirementAligner:
             confidence=requirement.confidence,
             rationale="structured_resume_evidence_found",
         )
+
+    def _align_experience_requirement(
+        self,
+        *,
+        requirement: JobRequirement,
+        structured_resume: StructuredResume,
+    ) -> RequirementAlignment:
+        """
+        Align an experience requirement using concept coverage across
+        EXPERIENCE, PROJECTS, and SKILLS sections.
+
+        Concept coverage is derived from an alias map so that synonymous
+        terms (e.g. "etl" and "elt", "sql" and "postgresql") contribute to
+        the same concept. A requirement is only MATCHED when every derived
+        concept is evidenced somewhere in the resume. Partial coverage
+        yields PARTIAL. No concept evidence yields UNKNOWN.
+        """
+        section_blocks: list[tuple[ResumeSectionType, str, object]] = []
+
+        for section_type in self._EXPERIENCE_EVIDENCE_SECTIONS:
+            for section in structured_resume.sections_of(section_type):
+                heading = section.heading or section.section_type.value
+                for block in section.blocks:
+                    section_blocks.append(
+                        (section_type, heading, block)
+                    )
+
+        requirement_concepts = self._derive_experience_concepts(
+            requirement.text
+        )
+
+        if not requirement_concepts:
+            return RequirementAlignment(
+                requirement_id=requirement.requirement_id,
+                status=RequirementMatchStatus.UNKNOWN,
+                confidence=requirement.confidence,
+                rationale="no_experience_concepts_derived",
+                evidence=requirement.evidence,
+            )
+
+        if not section_blocks:
+            return RequirementAlignment(
+                requirement_id=requirement.requirement_id,
+                status=RequirementMatchStatus.UNKNOWN,
+                confidence=requirement.confidence,
+                rationale="no_resume_evidence_found",
+                evidence=requirement.evidence,
+            )
+
+        concept_evidence: dict[str, list[tuple[ResumeSectionType, str, object]]] = {
+            concept: [] for concept in requirement_concepts
+        }
+
+        for section_type, heading, block in section_blocks:
+            block_concepts = self._concepts_in_text(block.text)
+            for concept in requirement_concepts:
+                if concept in block_concepts:
+                    concept_evidence[concept].append(
+                        (section_type, heading, block)
+                    )
+
+        evidenced_concepts = [
+            concept
+            for concept, matches in concept_evidence.items()
+            if matches
+        ]
+
+        if not evidenced_concepts:
+            return RequirementAlignment(
+                requirement_id=requirement.requirement_id,
+                status=RequirementMatchStatus.UNKNOWN,
+                confidence=requirement.confidence,
+                rationale="no_resume_evidence_found",
+                evidence=requirement.evidence,
+            )
+
+        covered_section_types: set[ResumeSectionType] = set()
+        for concept in evidenced_concepts:
+            for section_type, _, _ in concept_evidence[concept]:
+                covered_section_types.add(section_type)
+
+        all_evidenced = len(evidenced_concepts) == len(requirement_concepts)
+        status = (
+            RequirementMatchStatus.MATCHED
+            if all_evidenced
+            else RequirementMatchStatus.PARTIAL
+        )
+
+        resume_evidence: list[Evidence] = []
+        seen_block_ids: set[int] = set()
+
+        for index, concept in enumerate(evidenced_concepts):
+            for section_type, heading, block in concept_evidence[concept]:
+                if id(block) in seen_block_ids:
+                    continue
+
+                seen_block_ids.add(id(block))
+                resume_evidence.append(
+                    Evidence(
+                        evidence_id=(
+                            f"resume-experience-{requirement.requirement_id}-"
+                            f"{index}-{len(resume_evidence)}"
+                        ),
+                        source_type=EvidenceSourceType.RESUME,
+                        source_document_id=structured_resume.document_id,
+                        section=heading,
+                        text=block.text,
+                        start_offset=None,
+                        end_offset=None,
+                        evidence_type="requirement_alignment",
+                        extractor=self.ENGINE_VERSION,
+                        relevance=0.80,
+                        confidence=0.75,
+                    )
+                )
+
+        professional_evidence = (
+            ResumeSectionType.EXPERIENCE in covered_section_types
+        )
+        project_evidence = (
+            ResumeSectionType.PROJECTS in covered_section_types
+        )
+        declared_skill_evidence = (
+            ResumeSectionType.SKILLS in covered_section_types
+        )
+
+        if professional_evidence:
+            rationale = "professional_experience_evidence_found"
+        elif project_evidence and declared_skill_evidence:
+            rationale = "mixed_resume_evidence_found"
+        elif project_evidence:
+            rationale = "project_experience_evidence_found"
+        elif declared_skill_evidence:
+            rationale = "declared_skill_evidence_found"
+        else:
+            rationale = "no_resume_evidence_found"
+
+        evidence = self._deduplicate_evidence(
+            list(requirement.evidence) + resume_evidence
+        )
+
+        return RequirementAlignment(
+            requirement_id=requirement.requirement_id,
+            status=status,
+            confidence=requirement.confidence,
+            rationale=rationale,
+            evidence=evidence,
+        )
+
+    def _derive_experience_concepts(
+        self,
+        requirement_text: str,
+    ) -> set[str]:
+        """
+        Map requirement text to the fixed set of experience concepts.
+
+        A concept is derived when any of its aliases appears as a whole-word
+        phrase inside the requirement text.
+        """
+        lowered = requirement_text.lower()
+        concepts: set[str] = set()
+
+        for concept, aliases in self._EXPERIENCE_CONCEPT_ALIASES.items():
+            if self._contains_any_alias(lowered, aliases):
+                concepts.add(concept)
+
+        return concepts
+
+    def _concepts_in_text(self, text: str) -> set[str]:
+        """
+        Return the experience concepts evidenced by a single resume block.
+
+        Uses the same alias map as requirement-side derivation so coverage
+        is symmetric.
+        """
+        lowered = text.lower()
+        concepts: set[str] = set()
+
+        for concept, aliases in self._EXPERIENCE_CONCEPT_ALIASES.items():
+            if self._contains_any_alias(lowered, aliases):
+                concepts.add(concept)
+
+        return concepts
+
+    @staticmethod
+    def _contains_any_alias(
+        lowered_text: str,
+        aliases: set[str],
+    ) -> bool:
+        """
+        Match each alias as a whole word or phrase.
+
+        Aliases with punctuation (e.g. "etl/elt") are matched literally
+        after the boundary check on the surrounding characters.
+        """
+        for alias in aliases:
+            if not alias:
+                continue
+
+            if re.search(
+                rf"(?<!\w){re.escape(alias)}(?!\w)",
+                lowered_text,
+            ):
+                return True
+
+        return False
 
     @staticmethod
     def _requirement_mentions_skill(

@@ -157,15 +157,24 @@ class JDStructureInterpreter:
         self,
         document: ParsedDocument,
     ) -> StructuredJobDescription:
-        """Interpret a parsed job description without reparsing the source."""
-
+        """Interpret structural job-description sections from a ParsedDocument."""
         sections: list[JDSection] = []
         current_type = JDSectionType.HEADER
         current_heading: str | None = None
         current_blocks: list[DocumentBlock] = []
 
-        for block in document.blocks:
+        for block_index, block in enumerate(document.blocks):
             heading_type = self._classify_heading(block)
+
+            # The first heading in a JD is commonly the job title.
+            # It should remain part of the HEADER rather than becoming UNKNOWN.
+            if (
+                block_index == 0
+                and heading_type == JDSectionType.UNKNOWN
+                and block.block_type == DocumentBlockType.HEADING
+            ):
+                current_heading = block.text.strip()
+                continue
 
             if heading_type is not None:
                 if current_blocks or current_heading is not None:

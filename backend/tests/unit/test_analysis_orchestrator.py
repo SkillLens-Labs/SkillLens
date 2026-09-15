@@ -384,12 +384,12 @@ def test_resume_analysis_integrates_resume_improvement_prompt() -> None:
     assert result.resume_improvement_prompt is not None
     assert result.resume_improvement_prompt.strip()
     assert "CANDIDATE FACTS" in result.resume_improvement_prompt
-    assert "CURRENT RESUME QUALITY" in result.resume_improvement_prompt
+    assert "RESUME QUALITY" in result.resume_improvement_prompt
     assert "LANGUAGE QUALITY" in result.resume_improvement_prompt
     assert "STRICT FACTUALITY RULES" in result.resume_improvement_prompt
     assert result.metadata.engine_versions[
         "resume_improvement_prompt"
-    ] == "phase9-resume-improvement-prompt-v1"
+    ] == "phase9-resume-improvement-prompt-v2"
 
 
 def test_resume_jd_analysis_integrates_resume_improvement_prompt() -> None:
@@ -416,16 +416,16 @@ def test_resume_jd_analysis_integrates_resume_improvement_prompt() -> None:
 
     assert result.resume_improvement_prompt is not None
     assert result.resume_improvement_prompt.strip()
-    assert "JOB MATCH ANALYSIS" in result.resume_improvement_prompt
+    assert "TARGET JOB" in result.resume_improvement_prompt
     assert "Required skills:" in result.resume_improvement_prompt
     assert "Preferred skills:" in result.resume_improvement_prompt
     assert "Matched skills:" in result.resume_improvement_prompt
     assert "Partial matches:" in result.resume_improvement_prompt
-    assert "Missing skills:" in result.resume_improvement_prompt
+    assert "Transferable skills:" in result.resume_improvement_prompt
     assert "STRICT FACTUALITY RULES" in result.resume_improvement_prompt
     assert result.metadata.engine_versions[
         "resume_improvement_prompt"
-    ] == "phase9-resume-improvement-prompt-v1"
+    ] == "phase9-resume-improvement-prompt-v2"
 
 
 def test_resume_analysis_integrates_language_quality() -> None:
@@ -454,7 +454,7 @@ def test_orchestrator_preserves_phase3_structure_and_skill_pipeline() -> None:
     assert result.resume_profile.document_id == "orchestrator-resume-001"
     assert result.resume_profile.skill_categories
 
-    assert result.resume_profile.metadata["builder_version"] == "phase3-v1"
+    assert result.resume_profile.metadata["builder_version"] == "phase3-v2"
     assert result.resume_profile.metadata["esco_version"] == "1.2.1"
 
 
@@ -469,7 +469,7 @@ def test_orchestrator_populates_engine_metadata() -> None:
     versions = result.metadata.engine_versions
 
     assert versions["orchestrator"] == orchestrator.ENGINE_VERSION
-    assert versions["profile_builder"] == "phase3-v1"
+    assert versions["profile_builder"] == "phase3-v2"
     assert versions["resume_quality"] == ResumeQualityAnalyzer.ENGINE_VERSION
     assert versions["ats_intelligence"] == ATSIntelligenceAnalyzer.ENGINE_VERSION
     assert (

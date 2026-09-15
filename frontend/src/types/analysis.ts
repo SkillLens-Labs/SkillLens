@@ -144,6 +144,40 @@ export type MatchRelationship =
   | "related"
   | "unmatched";
 
+export type JobRequirementType = "required" | "preferred";
+
+export type JobRequirementCategory =
+  | "skill"
+  | "experience"
+  | "education"
+  | "certification";
+
+export type RequirementMatchStatus =
+  | "matched"
+  | "partial"
+  | "unmatched"
+  | "unknown";
+
+export interface JobRequirement {
+  requirement_id: string;
+  text: string;
+  requirement_type: JobRequirementType;
+  category: JobRequirementCategory;
+  skill_id: string | null;
+  canonical_name: string | null;
+  evidence: Evidence[];
+  confidence: Confidence | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface RequirementAlignment {
+  requirement_id: string;
+  status: RequirementMatchStatus;
+  evidence: Evidence[];
+  confidence: Confidence | null;
+  rationale: string | null;
+}
+
 export interface SkillMatch {
   resume_skill_id: string;
   job_skill_id: string;
@@ -154,12 +188,24 @@ export interface SkillMatch {
   rationale: string | null;
 }
 
+export interface MatchingResult {
+  skill_matches: SkillMatch[];
+  requirement_alignments: RequirementAlignment[];
+  confidence: Confidence | null;
+  evidence: Evidence[];
+  metadata: Record<string, unknown>;
+}
+
 export interface SkillGap {
   gap_id: string;
+  requirement_id: string;
+  requirement_type: string;
   target_skill_id: string;
   target_skill_name: string;
+  match_status: string;
   gap_type: string;
   severity: string | null;
+  similarity: number | null;
   rationale: string | null;
   evidence: Evidence[];
   confidence: Confidence | null;
@@ -185,6 +231,18 @@ export interface ScoreAdjustment {
   value: number;
 }
 
+export interface ScoreContribution {
+  contribution_id: string;
+  dimension: string;
+  source_type: string;
+  source_id: string;
+  score: number;
+  weight: number;
+  contribution: number;
+  rationale: string;
+  requirement_type?: string | null;
+}
+
 export interface ScoringResult {
   overall_score: number;
   skill_score: number;
@@ -194,6 +252,7 @@ export interface ScoringResult {
   education_score: number;
   domain_score: number;
   dimension_scores: DimensionScore[];
+  contributions: ScoreContribution[];
   weights: Record<string, number>;
   penalties: ScoreAdjustment[];
   bonuses: ScoreAdjustment[];
@@ -225,11 +284,35 @@ export interface XAIResult {
   confidence: Confidence | null;
 }
 
+export type CareerSeniorityLevel =
+  | "entry"
+  | "junior"
+  | "mid"
+  | "senior"
+  | "lead"
+  | "unknown";
+
+export type CareerDirection =
+  | "primary"
+  | "secondary"
+  | "insufficient_evidence";
+
 export interface RoleFit {
   role: string;
   fit_score: number;
-  rationale: string | null;
-  confidence: Confidence | null;
+  direction: CareerDirection;
+  rationale: string;
+  evidence: Evidence[];
+  confidence: Confidence;
+}
+
+export interface CareerDirectionResult {
+  role: string;
+  direction: CareerDirection;
+  fit_score: number;
+  rationale: string;
+  evidence: Evidence[];
+  confidence: Confidence;
 }
 
 export interface SkillPriority {
@@ -241,17 +324,25 @@ export interface SkillPriority {
 
 export interface CareerIntelligence {
   inferred_profile: string | null;
-  experience_level: string | null;
+  experience_level: CareerSeniorityLevel;
+  seniority_confidence: Confidence;
+  seniority_evidence: Evidence[];
+  seniority_rationale: string;
   primary_domains: string[];
   secondary_domains: string[];
   strengths: string[];
-  career_signals: string[];
+  limitations: string[];
+  transferable_skills: string[];
+  career_directions: CareerDirectionResult[];
   potential_roles: string[];
   role_fit: RoleFit[];
+  career_signals: string[];
   transition_analysis: string | null;
   skill_priorities: SkillPriority[];
   risks: string[];
-  confidence: Confidence | null;
+  confidence: Confidence;
+  taxonomy_version: string;
+  engine_version: string;
 }
 
 export type RecommendationType =
@@ -259,51 +350,75 @@ export type RecommendationType =
   | "project"
   | "certification"
   | "resume"
-  | "career";
+  | "career"
+  | "job_alignment";
+
+export type RecommendationPriority =
+  | "low"
+  | "medium"
+  | "high"
+  | "critical";
+
+export type RecommendationEffort = "low" | "medium" | "high";
+
+export type RecommendationImpact = "low" | "medium" | "high";
 
 export interface Recommendation {
   recommendation_id: string;
   type: RecommendationType;
   title: string;
   target_skill: string | null;
-  priority: string;
+  priority: RecommendationPriority;
   rationale: string;
-  expected_impact: string | null;
-  effort: string | null;
+  expected_impact: RecommendationImpact | null;
+  effort: RecommendationEffort | null;
   evidence: Evidence[];
   related_gap_ids: string[];
   confidence: Confidence | null;
+  priority_score: number;
+  impact_score: number;
+  source_engine: string;
 }
 
-export interface AnalysisInput {
-  resume_document_id: string;
-  job_description_document_id: string | null;
+export type LanguageIssueType =
+  | "spelling"
+  | "grammar"
+  | "wording"
+  | "terminology"
+  | "formatting";
+
+export type LanguageIssueSeverity =
+  | "info"
+  | "low"
+  | "medium"
+  | "high";
+
+export interface LanguageIssue {
+  issue_id: string;
+  issue_type: LanguageIssueType;
+  severity: LanguageIssueSeverity;
+  title: string;
+  explanation: string;
+  recommendation: string | null;
+  original_text: string | null;
+  suggested_text: string | null;
+  evidence: Evidence[];
+  confidence: Confidence;
 }
 
-export interface AnalysisMetadata {
-  engine_versions: Record<string, string>;
-  processing_time_ms: number | null;
+export interface AIAuthorshipHeuristic {
+  score: number;
+  level: string;
+  signals: string[];
+  disclaimer: string;
+}
+
+export interface ResumeLanguageQualityResult {
+  overall_score: number;
+  issues: LanguageIssue[];
+  confidence: Confidence;
+  authorship_heuristic: AIAuthorshipHeuristic;
   warnings: string[];
-  extra: Record<string, unknown>;
-}
-
-export interface AnalysisResult {
-  analysis_id: string;
-  schema_version: string;
-  analysis_mode: AnalysisMode;
-  status: AnalysisStatus;
-  created_at: string;
-  input: AnalysisInput;
-  resume_profile: ResumeProfile;
-  job_profile: JobProfile | null;
-  skill_analysis: SkillAnalysis;
-  resume_quality: ResumeQualityResult | null;
-  ats_intelligence: ATSIntelligenceResult | null;
-  scoring: ScoringResult | null;
-  xai: XAIResult | null;
-  career_intelligence: CareerIntelligence | null;
-  recommendations: Recommendation[];
-  metadata: AnalysisMetadata;
 }
 
 export type ResumeQualitySeverity = "info" | "low" | "medium" | "high";
@@ -379,4 +494,38 @@ export interface ATSIntelligenceResult {
   findings: ATSIntelligenceFinding[];
   confidence: Confidence;
   warnings: string[];
+}
+
+export interface AnalysisInput {
+  resume_document_id: string;
+  job_description_document_id: string | null;
+}
+
+export interface AnalysisMetadata {
+  engine_versions: Record<string, string>;
+  processing_time_ms: number | null;
+  warnings: string[];
+  extra: Record<string, unknown>;
+}
+
+export interface AnalysisResult {
+  analysis_id: string;
+  schema_version: string;
+  analysis_mode: AnalysisMode;
+  status: AnalysisStatus;
+  created_at: string;
+  input: AnalysisInput;
+  resume_profile: ResumeProfile;
+  job_profile: JobProfile | null;
+  skill_analysis: SkillAnalysis;
+  resume_quality: ResumeQualityResult | null;
+  ats_intelligence: ATSIntelligenceResult | null;
+  language_quality: ResumeLanguageQualityResult | null;
+  resume_improvement_prompt: string | null;
+  matching: MatchingResult | null;
+  scoring: ScoringResult | null;
+  xai: XAIResult | null;
+  career_intelligence: CareerIntelligence | null;
+  recommendations: Recommendation[];
+  metadata: AnalysisMetadata;
 }

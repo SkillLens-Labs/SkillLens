@@ -191,10 +191,6 @@ def _job_description_text_as_docx(
             current_section_started = True
             continue
 
-        if not current_section_started:
-            document.add_heading("Summary", level=2)
-            current_section_started = True
-
         document.add_paragraph(line)
 
     if not current_section_started:

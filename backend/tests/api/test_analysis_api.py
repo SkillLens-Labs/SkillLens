@@ -559,3 +559,42 @@ def test_resume_jd_rejects_missing_job_description_input() -> None:
     assert response.status_code == 400
     data = response.json()
     assert data["code"] == "INVALID_DOCUMENT_INPUT"
+
+def test_job_description_text_preserves_header_metadata() -> None:
+    from backend.app.api.routes.analyses import _job_description_text_as_docx
+    from backend.app.analysis.jd_structure import JDSectionType, JDStructureInterpreter
+    from backend.app.infrastructure.parsers.document_processor import DocumentProcessor
+
+    jd_text = (
+        "Data Engineer\n"
+        "Company: NovaTech Solutions\n"
+        "Location: Remote — India\n"
+        "Employment Type: Full-time\n"
+        "Experience: 0–2 years\n"
+        "\n"
+        "Required Qualifications\n"
+        "Strong Python programming skills.\n"
+    )
+
+    filename, content, content_type = _job_description_text_as_docx(
+        jd_text,
+        "test_jd",
+    )
+
+    document = DocumentProcessor().process(
+        filename=filename,
+        content=content,
+        content_type=content_type,
+        document_id="test-jd-header",
+    )
+
+    structured = JDStructureInterpreter().interpret(document)
+
+    header = structured.sections_of(JDSectionType.HEADER)[0]
+
+    assert [block.text for block in header.blocks] == [
+        "Company: NovaTech Solutions",
+        "Location: Remote — India",
+        "Employment Type: Full-time",
+        "Experience: 0–2 years",
+    ]

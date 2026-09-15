@@ -320,35 +320,48 @@ class JDProfileBuilder:
     def _build_experience_requirements(
         requirements: tuple[JobRequirement, ...],
     ) -> ExperienceRequirements | None:
-        experience = [
+        experience_requirements = [
             requirement
             for requirement in requirements
-            if requirement.category == JobRequirementCategory.EXPERIENCE
+            if requirement.category is JobRequirementCategory.EXPERIENCE
         ]
 
-        if not experience:
-            return None
+        descriptions = [
+            requirement.text.strip()
+            for requirement in experience_requirements
+            if requirement.text.strip()
+        ]
 
-        descriptions = [requirement.text for requirement in experience]
+        combined_text = " ".join(descriptions)
+
+        range_match = re.search(
+            r"\b(\d+(?:\.\d+)?)\s*(?:[-–—]|to)\s*"
+            r"(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\b",
+            combined_text,
+            flags=re.IGNORECASE,
+        )
+
+        plus_match = re.search(
+            r"\b(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\b",
+            combined_text,
+            flags=re.IGNORECASE,
+        )
 
         minimum_years: float | None = None
+        maximum_years: float | None = None
 
-        for requirement in experience:
-            match = re.search(
-                r"\b(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?)\b",
-                requirement.text,
-                re.IGNORECASE,
-            )
-            if match:
-                value = float(match.group(1))
-                minimum_years = (
-                    value
-                    if minimum_years is None
-                    else max(minimum_years, value)
-                )
+        if range_match:
+            minimum_years = float(range_match.group(1))
+            maximum_years = float(range_match.group(2))
+        elif plus_match:
+            minimum_years = float(plus_match.group(1))
+
+        if not descriptions:
+            return None
 
         return ExperienceRequirements(
             minimum_years=minimum_years,
+            maximum_years=maximum_years,
             description=" ".join(descriptions),
         )
 
@@ -356,43 +369,73 @@ class JDProfileBuilder:
     def _build_education_requirements(
         requirements: tuple[JobRequirement, ...],
     ) -> EducationRequirements | None:
-        education = [
+        education_requirements = [
             requirement
             for requirement in requirements
-            if requirement.category == JobRequirementCategory.EDUCATION
+            if requirement.category is JobRequirementCategory.EDUCATION
         ]
 
-        if not education:
+        if not education_requirements:
             return None
+
+        descriptions = [
+            requirement.text.strip()
+            for requirement in education_requirements
+            if requirement.text.strip()
+        ]
+
+        combined_text = " ".join(descriptions)
+        normalized = combined_text.casefold()
 
         degrees: list[str] = []
 
-        degree_terms = (
-            "bachelor",
-            "master",
-            "b.e.",
-            "b.tech",
-            "btech",
-            "m.e.",
-            "m.tech",
-            "mtech",
-            "phd",
-            "doctorate",
-            "diploma",
+        degree_aliases = (
+            ("bachelor", "bachelor"),
+            ("b.e.", "bachelor"),
+            ("b.tech", "bachelor"),
+            ("b.sc", "bachelor"),
+            ("master", "master"),
+            ("m.e.", "master"),
+            ("m.tech", "master"),
+            ("m.sc", "master"),
+            ("phd", "phd"),
+            ("doctorate", "phd"),
         )
 
-        for requirement in education:
-            text_lower = requirement.text.lower()
-            for term in degree_terms:
-                if term in text_lower and term not in degrees:
-                    degrees.append(term)
+        for alias, canonical in degree_aliases:
+            if alias in normalized and canonical not in degrees:
+                degrees.append(canonical)
+
+        fields_of_study: list[str] = []
+
+        field_match = re.search(
+            r"\b(?:in|with\s+(?:a\s+)?(?:degree|background)\s+in)\s+"
+            r"(.+?)(?:\.|$)",
+            combined_text,
+            flags=re.IGNORECASE,
+        )
+
+        if field_match:
+            field_text = field_match.group(1).strip()
+
+            field_text = re.sub(
+                r"\s+or\s+related\s+field.*$",
+                "",
+                field_text,
+                flags=re.IGNORECASE,
+            )
+
+            for field in re.split(r",|\bor\b", field_text, flags=re.IGNORECASE):
+                field = field.strip(" .")
+                if field and field.casefold() not in {
+                    existing.casefold() for existing in fields_of_study
+                }:
+                    fields_of_study.append(field)
 
         return EducationRequirements(
             degrees=degrees,
-            fields_of_study=[],
-            description=" ".join(
-                requirement.text for requirement in education
-            ),
+            fields_of_study=fields_of_study,
+            description=combined_text or None,
         )
 
     @staticmethod
@@ -435,15 +478,34 @@ class JDProfileBuilder:
     ) -> str:
         header_sections = document.sections_of(JDSectionType.HEADER)
 
+        # The HEADER heading represents the document/job title when present.
+        for section in header_sections:
+            if section.heading and section.heading.strip():
+                return section.heading.strip()
+
+        # Fall back to a non-metadata header block when no header heading exists.
+        metadata_prefixes = (
+            "company:",
+            "location:",
+            "employment type:",
+            "experience:",
+        )
+
         for section in header_sections:
             for block in section.blocks:
                 text = block.text.strip()
-                if text:
-                    return text
+                if not text:
+                    continue
+
+                normalized = text.casefold()
+                if normalized.startswith(metadata_prefixes):
+                    continue
+
+                return text
 
         for section in document.sections:
             if section.heading:
-                return section.heading
+                return section.heading.strip()
 
         return "Unknown"
 
@@ -451,12 +513,20 @@ class JDProfileBuilder:
     def _extract_company(
         document: StructuredJobDescription,
     ) -> str | None:
+        """Extract company name from explicit header metadata or header text."""
         for section in document.sections_of(JDSectionType.HEADER):
             for block in section.blocks:
-                company = block.metadata.get("company")
+                metadata_company = block.metadata.get("company")
+                if metadata_company:
+                    return str(metadata_company).strip() or None
 
-                if isinstance(company, str) and company.strip():
-                    return company.strip()
+                match = re.match(
+                    r"^\s*company\s*:\s*(.+?)\s*$",
+                    block.text,
+                    flags=re.IGNORECASE,
+                )
+                if match:
+                    return match.group(1).strip() or None
 
         return None
 

@@ -23,6 +23,7 @@ class _RequirementCandidate:
     text: str
     section: JDSection
     block_index: int
+    requirement_type: JobRequirementType
 
 
 class JDRequirementExtractor:
@@ -48,6 +49,25 @@ class JDRequirementExtractor:
         }
     )
 
+    _REQUIRED_MARKERS = frozenset(
+        {
+            "required",
+            "required:",
+            "must have",
+            "must-have",
+        }
+    )
+
+    _PREFERRED_MARKERS = frozenset(
+        {
+            "preferred",
+            "preferred:",
+            "desired",
+            "desired:",
+            "nice to have",
+            "nice-to-have",
+        }
+    )
 
     _EXPERIENCE_PATTERNS = (
         re.compile(r"\b\d+(?:\.\d+)?\+?\s*(?:years?|yrs?)\b", re.IGNORECASE),
@@ -83,6 +103,13 @@ class JDRequirementExtractor:
         "licensed",
     )
 
+    _HEADER_REQUIREMENT_LABELS = {
+        "experience": JobRequirementCategory.EXPERIENCE,
+        "education": JobRequirementCategory.EDUCATION,
+        "certification": JobRequirementCategory.CERTIFICATION,
+        "certifications": JobRequirementCategory.CERTIFICATION,
+    }
+
     def extract(
         self,
         document: StructuredJobDescription,
@@ -91,19 +118,54 @@ class JDRequirementExtractor:
         Extract requirements while preserving source order and evidence.
 
         Requirements are generated only from explicit requirement-oriented
-        sections or explicit requirement language. Unknown content is not
-        promoted into a requirement.
+        sections or explicit requirement language. Marker lines such as
+        "Required:" and "Preferred:" update the active requirement context
+        and are not themselves emitted as requirements.
         """
         candidates: list[_RequirementCandidate] = []
 
         for section in document.sections:
-            requirement_type = self._requirement_type_for_section(section.section_type)
-            if requirement_type is None:
+            section_requirement_type = self._requirement_type_for_section(
+                section.section_type
+            )
+
+            if (
+                section.section_type == JDSectionType.HEADER
+                and section_requirement_type is None
+            ):
+                for block_index, block in enumerate(section.blocks):
+                    text = self._clean_text(block.text)
+                    if not text:
+                        continue
+
+                    category = self._header_requirement_category(text)
+                    if category is None:
+                        continue
+
+                    candidates.append(
+                        _RequirementCandidate(
+                            text=text,
+                            section=section,
+                            block_index=block_index,
+                            requirement_type=JobRequirementType.REQUIRED,
+                        )
+                    )
+
                 continue
+
+            if section_requirement_type is None:
+                continue
+
+            current_requirement_type = section_requirement_type
 
             for block_index, block in enumerate(section.blocks):
                 text = self._clean_text(block.text)
                 if not text:
+                    continue
+
+                marker_type = self._requirement_type_for_marker(text)
+                if marker_type is not None:
+                    current_requirement_type = marker_type
                     continue
 
                 for item in self._split_requirement_text(text):
@@ -111,24 +173,26 @@ class JDRequirementExtractor:
                     if not item:
                         continue
 
+                    explicit_type = self._explicit_requirement_type(item)
+
+                    effective_type = (
+                        explicit_type
+                        if explicit_type is not None
+                        else current_requirement_type
+                    )
+
                     candidates.append(
                         _RequirementCandidate(
                             text=item,
                             section=section,
                             block_index=block_index,
+                            requirement_type=effective_type,
                         )
                     )
 
         requirements: list[JobRequirement] = []
 
         for candidate in candidates:
-            requirement_type = self._requirement_type_for_candidate(
-                section_type=candidate.section.section_type,
-                text=candidate.text,
-            )
-            if requirement_type is None:
-                continue
-
             category = self._classify_category(
                 candidate.text,
                 candidate.section.section_type,
@@ -137,7 +201,7 @@ class JDRequirementExtractor:
             requirements.append(
                 self._build_requirement(
                     candidate=candidate,
-                    requirement_type=requirement_type,
+                    requirement_type=candidate.requirement_type,
                     category=category,
                     document_id=document.document_id,
                     sequence=len(requirements),
@@ -145,6 +209,28 @@ class JDRequirementExtractor:
             )
 
         return requirements
+
+    @classmethod
+    def _header_requirement_category(
+        cls,
+        text: str,
+    ) -> JobRequirementCategory | None:
+        """
+        Detect requirement-bearing metadata explicitly labeled in a JD header.
+
+        Header metadata such as company, location, and employment type is not
+        treated as a requirement. Only recognized requirement labels are
+        promoted into JobRequirement objects.
+        """
+        match = re.match(
+            r"^\s*([A-Za-z][A-Za-z ]*)\s*:\s*(.+?)\s*$",
+            text,
+        )
+        if not match:
+            return None
+
+        label = " ".join(match.group(1).casefold().split())
+        return cls._HEADER_REQUIREMENT_LABELS.get(label)
 
     def _build_requirement(
         self,
@@ -242,12 +328,33 @@ class JDRequirementExtractor:
         return any(term in text for term in cls._CERTIFICATION_TERMS)
 
     @classmethod
-    def _requirement_type_for_candidate(
+    def _requirement_type_for_marker(
         cls,
-        *,
-        section_type: JDSectionType,
         text: str,
     ) -> JobRequirementType | None:
+        normalized = " ".join(text.casefold().split())
+
+        if normalized in cls._REQUIRED_MARKERS:
+            return JobRequirementType.REQUIRED
+
+        if normalized in cls._PREFERRED_MARKERS:
+            return JobRequirementType.PREFERRED
+
+        return None
+
+    @classmethod
+    def _explicit_requirement_type(
+        cls,
+        text: str,
+    ) -> JobRequirementType | None:
+        """
+        Detect an explicit preference signal within an individual requirement.
+
+        This is intentionally separate from section/marker context. Marker
+        context such as "Preferred:" is handled by the extractor state, while
+        phrases such as "preferred", "must", or "mandatory" inside an actual
+        requirement can override that state.
+        """
         normalized = text.casefold()
 
         explicit_preferred = (
@@ -272,6 +379,19 @@ class JDRequirementExtractor:
 
         if explicit_required:
             return JobRequirementType.REQUIRED
+
+        return None
+
+    @classmethod
+    def _requirement_type_for_candidate(
+        cls,
+        *,
+        section_type: JDSectionType,
+        text: str,
+    ) -> JobRequirementType | None:
+        explicit = cls._explicit_requirement_type(text)
+        if explicit is not None:
+            return explicit
 
         return cls._requirement_type_for_section(section_type)
 

@@ -326,9 +326,20 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
             resume_esco_results,
         )
 
+        resume_quality = self._quality_analyzer.analyze(
+            structured_resume,
+            resume_profile,
+        )
+
         language_quality = self._language_quality_analyzer.analyze(
             parsed_document=resume_document,
             structured_resume=structured_resume,
+        )
+
+        ats_intelligence = self._ats_analyzer.analyze(
+            resume_document,
+            structured_resume,
+            resume_profile,
         )
 
         career_intelligence = None
@@ -430,6 +441,8 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                 job_description_document_id=job_document.document_id,
             ),
             resume_profile=resume_profile,
+            resume_quality=resume_quality,
+            ats_intelligence=ats_intelligence,
             job_profile=jd_build.profile,
             language_quality=language_quality,
             matching=matching,
@@ -443,6 +456,8 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     "orchestrator": self.ENGINE_VERSION,
                     "profile_builder": self._profile_builder.BUILDER_VERSION,
                     "jd_profile_builder": self._jd_profile_builder.BUILDER_VERSION,
+                    "resume_quality": self._quality_analyzer.ENGINE_VERSION,
+                    "ats_intelligence": self._ats_analyzer.ENGINE_VERSION,
                     "language_quality": self._language_quality_analyzer.ENGINE_VERSION,
                     "resume_improvement_prompt": self._resume_improvement_prompt_generator.ENGINE_VERSION,
                     "skill_matcher": self._skill_matcher.ENGINE_VERSION,
@@ -480,7 +495,11 @@ class ConcreteAnalysisOrchestrator(AnalysisOrchestrator):
                     ),
                 },
                 processing_time_ms=processing_time_ms,
-                warnings=language_quality.warnings,
+                warnings=(
+                    *resume_quality.warnings,
+                    *ats_intelligence.warnings,
+                    *language_quality.warnings,
+                ),
                 extra={
                     "source": (
                         request.client_metadata.source

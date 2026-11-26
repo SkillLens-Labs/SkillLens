@@ -80,6 +80,45 @@ class SkillNormalizer:
                 },
             )
 
+        if canonical_name is None:
+            # Case-sensitive aliases such as "Go", "AI", "R" arrive with
+            # their original casing preserved by the extractor.
+            case_canonical = Taxonomy.lookup_case_sensitive(raw_text)
+            if case_canonical is not None:
+                return NormalizedSkill(
+                    raw_text=raw_text,
+                    canonical_name=case_canonical,
+                    mention=mention,
+                    matched_alias=raw_text,
+                    confidence=mention.confidence,
+                    metadata={
+                        "normalization_method": "case_sensitive_alias",
+                        "category": Taxonomy.category_by_canonical.get(
+                            case_canonical, "",
+                        ),
+                    },
+                )
+
+        stripped_name = self._strip_generic_suffix(normalized)
+        if stripped_name != normalized:
+            stripped_canonical = self._CANONICAL_SKILLS.get(stripped_name)
+            if stripped_canonical is None:
+                stripped_canonical = self._ALIASES.get(stripped_name)
+            if stripped_canonical is not None:
+                return NormalizedSkill(
+                    raw_text=raw_text,
+                    canonical_name=stripped_canonical,
+                    mention=mention,
+                    matched_alias=stripped_name,
+                    confidence=mention.confidence,
+                    metadata={
+                        "normalization_method": "alias_lookup",
+                        "category": Taxonomy.category_by_canonical.get(
+                            stripped_canonical, "",
+                        ),
+                    },
+                )
+
         # The extractor should normally prevent this path. Keeping it
         # deterministic makes the normalizer safe when used independently.
         return NormalizedSkill(
@@ -98,6 +137,15 @@ class SkillNormalizer:
     ) -> tuple[NormalizedSkill, ...]:
         """Normalize multiple extracted skill mentions in source order."""
         return tuple(self.normalize(mention) for mention in mentions)
+
+    @staticmethod
+    def _strip_generic_suffix(normalized: str) -> str:
+        """Strip generic qualifier suffixes such as 'python programming'."""
+        return re.sub(
+            r"\s+(programming|development|skills)$",
+            "",
+            normalized,
+        )
 
     @staticmethod
     def _normalize_text(text: str) -> str:

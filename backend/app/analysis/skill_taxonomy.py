@@ -248,9 +248,8 @@ class SkillTaxonomy:
 
     def lookup(self, normalized_text: str) -> str | None:
         """Resolve one normalized alias or canonical name."""
-        canonical = self.definitions.get(normalized_text)
-        if canonical is not None:
-            return canonical
+        if normalized_text in self.definitions:
+            return normalized_text
         return self.alias_to_canonical.get(normalized_text)
 
     def lookup_case_sensitive(self, text: str) -> str | None:

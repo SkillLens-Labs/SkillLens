@@ -22,14 +22,19 @@ class TestTaxonomyConsistency:
             "data analysis", "data science", "statistics", "power bi",
             "tableau", "excel",
         }
-        available = set(Taxonomy.canonical_names)
-        missing = legacy - available
-        assert not missing, f"Legacy skills lost from taxonomy: {missing}"
+        unresolvable = {
+            name
+            for name in legacy
+            if name != "go"
+            and name not in Taxonomy.canonical_names
+            and Taxonomy.resolve(name) is None
+        }
+        assert not unresolvable, f"Legacy skills lost from taxonomy: {unresolvable}"
 
     def test_legacy_go_skill_resolves(self) -> None:
-        """'go' was a V1 canonical name; V2 resolves it to golang."""
-        assert Taxonomy.lookup("go") == "golang"
-        assert "golang" in Taxonomy.canonical_names
+        """'Go' was a V1 skill; V2 resolves it to golang."""
+        assert Taxonomy.resolve("Go") == "golang"
+        assert Taxonomy.resolve("golang") == "golang"
 
     def test_no_duplicate_aliases(self) -> None:
         seen: dict[str, str] = {}

@@ -188,6 +188,16 @@ _SKILL_DATA: tuple[SkillDefinition, ...] = (
                                               "analytical skills")),
     SkillDefinition("time management", SOFT, ("prioritization", "organizational skills")),
     SkillDefinition("adaptability", SOFT, ("flexible", "fast learner", "quick learner")),
+    # CS fundamentals & analysis tooling
+    SkillDefinition("data structures", DOMAIN, ("dsa",)),
+    SkillDefinition("algorithms", DOMAIN, ("algorithm design",)),
+    SkillDefinition("system design", DOMAIN, ("distributed systems design",)),
+    SkillDefinition("object oriented programming", DOMAIN,
+                    ("oop", "object-oriented programming")),
+    SkillDefinition("matplotlib", DATA),
+    SkillDefinition("jupyter", TOOL, ("jupyter notebook", "jupyter notebooks")),
+    SkillDefinition("shap", DATA, ("explainability", "model interpretability",
+                                   "interpretability")),
     # Domains
     SkillDefinition("fintech", DOMAIN, ("trading systems", "payments")),
     SkillDefinition("healthcare", DOMAIN, ("hipaa", "clinical data")),

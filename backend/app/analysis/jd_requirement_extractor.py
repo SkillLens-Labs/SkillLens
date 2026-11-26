@@ -411,18 +411,75 @@ class JDRequirementExtractor:
 
         return None
 
-    @staticmethod
-    def _split_requirement_text(text: str) -> list[str]:
+    _COMMA_SPLIT_FORBIDDEN = (
+        "experience", "years", "ability", "knowledge of", "familiar",
+        "understanding", "must", "require", "strong", "work with",
+        "including", "etc.", " or ", "exposure",
+    )
+
+    _CATEGORY_PREFIX_RE = re.compile(
+        r"^([A-Za-z][A-Za-z &/+-]{0,30}):\s*(.+)$"
+    )
+
+    @classmethod
+    def _split_requirement_text(cls, text: str) -> list[str]:
         """
-        Preserve bullets as individual requirements while avoiding aggressive
-        sentence splitting that could destroy technical requirement text.
+        Preserve bullets as individual requirements, strip short category
+        prefixes such as "Cloud:" or "Other:", and split comma-separated
+        skill enumerations into atomic requirements so each requirement
+        target stays a single, canonical-resolvable skill.
         """
         lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            lines = [text]
 
-        if len(lines) > 1:
-            return lines
+        items: list[str] = []
+        for line in lines:
+            items.extend(cls._split_atomic_requirement(line))
+        return items
+
+    @classmethod
+    def _split_atomic_requirement(cls, text: str) -> list[str]:
+        text = JDRequirementExtractor._strip_category_prefix(text)
+
+        if "," in text:
+            fragments = [
+                fragment.strip(" .;")
+                for fragment in text.split(",")
+            ]
+            fragments = [fragment for fragment in fragments if fragment]
+            if (
+                len(fragments) > 1
+                and all(
+                    JDRequirementExtractor._is_atomic_term(fragment)
+                    for fragment in fragments
+                )
+            ):
+                return fragments
 
         return [text]
+
+    @staticmethod
+    def _strip_category_prefix(text: str) -> str:
+        match = JDRequirementExtractor._CATEGORY_PREFIX_RE.match(text)
+        if not match:
+            return text
+        label = match.group(1).strip()
+        rest = match.group(2).strip()
+        if len(label.split()) <= 3 and rest:
+            return rest
+        return text
+
+    @staticmethod
+    def _is_atomic_term(fragment: str) -> bool:
+        words = fragment.split()
+        if not 1 <= len(words) <= 6:
+            return False
+        lowered = f" {fragment.casefold()} "
+        return not any(
+            term in lowered
+            for term in JDRequirementExtractor._COMMA_SPLIT_FORBIDDEN
+        )
 
     @staticmethod
     def _clean_text(text: str) -> str:

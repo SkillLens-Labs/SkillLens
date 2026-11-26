@@ -1,3 +1,11 @@
+"""SkillLens V2 skill normalization (resume side).
+
+Canonical-resolve extracted skill mentions using the shared taxonomy
+(skill_taxonomy.py). The legacy ``_CANONICAL_SKILLS`` and ``_ALIASES``
+class attributes are kept as derived views so existing callers (notably
+the JD-side extractor) continue to work unchanged.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -5,6 +13,7 @@ import re
 import unicodedata
 
 from backend.app.analysis.skill_extractor import SkillMention
+from backend.app.analysis.skill_taxonomy import Taxonomy
 
 
 @dataclass(frozen=True)
@@ -22,91 +31,13 @@ class NormalizedSkill:
 class SkillNormalizer:
     """Normalize extracted skill mentions deterministically."""
 
+    # Derived views of the shared taxonomy, kept for backwards
+    # compatibility with existing callers.
     _CANONICAL_SKILLS: dict[str, str] = {
-        "python": "python",
-        "java": "java",
-        "javascript": "javascript",
-        "typescript": "typescript",
-        "c++": "c++",
-        "c#": "c#",
-        "go": "go",
-        "rust": "rust",
-        "sql": "sql",
-        "nosql": "nosql",
-        "html": "html",
-        "css": "css",
-        "react": "react",
-        "angular": "angular",
-        "vue.js": "vue.js",
-        "node.js": "node.js",
-        "fastapi": "fastapi",
-        "django": "django",
-        "flask": "flask",
-        "spring boot": "spring boot",
-        "rest api": "rest api",
-        "graphql": "graphql",
-        "git": "git",
-        "github": "github",
-        "docker": "docker",
-        "kubernetes": "kubernetes",
-        "aws": "aws",
-        "azure": "azure",
-        "gcp": "gcp",
-        "linux": "linux",
-        "postgresql": "postgresql",
-        "mysql": "mysql",
-        "mongodb": "mongodb",
-        "redis": "redis",
-        "pandas": "pandas",
-        "numpy": "numpy",
-        "scikit-learn": "scikit-learn",
-        "tensorflow": "tensorflow",
-        "pytorch": "pytorch",
-        "xgboost": "xgboost",
-        "machine learning": "machine learning",
-        "deep learning": "deep learning",
-        "natural language processing": "natural language processing",
-        "nlp": "natural language processing",
-        "transformers": "transformers",
-        "hugging face": "hugging face",
-        "data analysis": "data analysis",
-        "data science": "data science",
-        "statistics": "statistics",
-        "power bi": "power bi",
-        "tableau": "tableau",
-        "excel": "excel",
+        name: name for name in Taxonomy.canonical_names
     }
 
-    _ALIASES: dict[str, str] = {
-        "py": "python",
-        "python programming": "python",
-        "python programming language": "python",
-        "python 3": "python",
-        "python3": "python",
-        "js": "javascript",
-        "javascript programming": "javascript",
-        "ts": "typescript",
-        "reactjs": "react",
-        "react js": "react",
-        "react.js": "react",
-        "vue": "vue.js",
-        "vuejs": "vue.js",
-        "node": "node.js",
-        "nodejs": "node.js",
-        "fast api": "fastapi",
-        "postgres": "postgresql",
-        "postgres sql": "postgresql",
-        "mongo": "mongodb",
-        "scikit learn": "scikit-learn",
-        "sklearn": "scikit-learn",
-        "ml": "machine learning",
-        "machine-learning": "machine learning",
-        "deep-learning": "deep learning",
-        "natural-language-processing": "natural language processing",
-        "powerbi": "power bi",
-        "ms excel": "excel",
-        "microsoft excel": "excel",
-    }
+    _ALIASES: dict[str, str] = Taxonomy.aliases
 
     def normalize(
         self,
@@ -126,6 +57,9 @@ class SkillNormalizer:
                 confidence=mention.confidence,
                 metadata={
                     "normalization_method": "canonical_lookup",
+                    "category": Taxonomy.category_by_canonical.get(
+                        canonical_name, "",
+                    ),
                 },
             )
 
@@ -140,6 +74,9 @@ class SkillNormalizer:
                 confidence=mention.confidence,
                 metadata={
                     "normalization_method": "alias_lookup",
+                    "category": Taxonomy.category_by_canonical.get(
+                        canonical_name, "",
+                    ),
                 },
             )
 

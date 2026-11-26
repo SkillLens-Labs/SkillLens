@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./styles.css";
 import type {
   AnalysisResult,
@@ -30,6 +30,10 @@ interface ApiError {
   request_id?: string;
 }
 
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
 function confidenceLabel(confidence?: Confidence | null): string {
   if (!confidence) return "Unknown";
   return `${confidence.level} (${Math.round(confidence.score * 100)}%)`;
@@ -46,44 +50,69 @@ function pretty(value: string | undefined | null): string {
 }
 
 /* =========================================================
-   HEADER — shared sticky glass bar
+   HEADER — two-item segmented nav with sliding indicator
    ========================================================= */
+
 function Header({
-  active,
-  subtitle = "Explainable career intelligence",
+  page,
+  onNavigate,
   onNewAnalysis,
-  onBack,
+  analysisExists,
 }: {
-  active?: "dashboard" | "input" | "landing";
-  subtitle?: string;
-  onNewAnalysis?: () => void;
-  onBack?: () => void;
+  page: Page;
+  onNavigate: (page: Page) => void;
+  onNewAnalysis: () => void;
+  analysisExists: boolean;
 }) {
+  // Map the current page to a nav index.
+  // "analyzing" keeps whatever the user was doing (defaults to dashboard).
+  const activeIndex: 0 | 1 | 2 =
+    page === "landing" ? 0 : page === "input" || page === "analyzing" ? 1 : 2; // "dashboard"
+
+  const items: { id: Page; label: string }[] = [
+    { id: "landing", label: "Home" },
+    { id: "input", label: "Upload" },
+    { id: "dashboard", label: "Dashboard" },
+  ];
+
   return (
     <header className="topbar">
-      <div className="topbar__brand">
+      <button
+        type="button"
+        className="topbar__brand"
+        onClick={() => onNavigate("landing")}
+        aria-label="SkillLens home"
+      >
         <span className="brand-mark" aria-hidden="true">
-          SL
+          <img src="/logo.png" alt="" />
         </span>
-        <div className="brand-block">
+        <span className="brand-block">
           <span className="brand">SKILLLENS</span>
-          <span className="brand-subtitle">{subtitle}</span>
-        </div>
-      </div>
+          <span className="brand-subtitle">
+            Explainable career intelligence
+          </span>
+        </span>
+      </button>
 
-      <nav className="topbar__nav" aria-label="Primary">
-        <span
-          className={`nav-item ${active === "dashboard" ? "is-active" : ""}`}
-        >
-          Dashboard
-        </span>
-        <span
-          className={`nav-item ${active === "input" ? "is-active" : ""}`}
-        >
-          New analysis
-        </span>
-        <span className="nav-item">Reports</span>
-        <span className="nav-item">Settings</span>
+      <nav
+        className="segmented-nav"
+        aria-label="Primary"
+        data-active={activeIndex}
+      >
+        <span className="segmented-nav__thumb" aria-hidden="true" />
+
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`segmented-nav__item ${
+              activeIndex === items.indexOf(item) ? "is-active" : ""
+            }`}
+            onClick={() => onNavigate(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       <div className="topbar__actions">
@@ -94,7 +123,7 @@ function Header({
           </span>
         </div>
 
-        {onNewAnalysis && (
+        {analysisExists ? (
           <button
             type="button"
             className="secondary-button"
@@ -102,21 +131,23 @@ function Header({
           >
             New analysis
           </button>
-        )}
-
-        {onBack && (
+        ) : (
           <button
             type="button"
             className="secondary-button"
-            onClick={onBack}
+            onClick={() => onNavigate("input")}
           >
-            Back
+            Get started
           </button>
         )}
       </div>
     </header>
   );
 }
+
+/* =========================================================
+   PRIMITIVES (unchanged)
+   ========================================================= */
 
 function EvidenceList({ evidence }: { evidence?: Evidence[] }) {
   if (!evidence?.length) return <p className="muted">No evidence recorded.</p>;
@@ -132,7 +163,6 @@ function EvidenceList({ evidence }: { evidence?: Evidence[] }) {
           <article className="evidence-item" key={item.evidence_id}>
             <div className="evidence-header">
               <strong>{pretty(item.source_type)}</strong>
-
               {item.section && (
                 <span className="evidence-section">{pretty(item.section)}</span>
               )}
@@ -142,11 +172,9 @@ function EvidenceList({ evidence }: { evidence?: Evidence[] }) {
 
             <div className="evidence-meta">
               <span>Type: {pretty(item.evidence_type)}</span>
-
               {item.relevance != null && (
                 <span>Relevance: {item.relevance.toFixed(2)}</span>
               )}
-
               {item.confidence != null && (
                 <span>Confidence: {item.confidence.toFixed(2)}</span>
               )}
@@ -187,7 +215,6 @@ function ScoreCard({
   score?: number | null;
   description?: string;
 }) {
-  // Drive the bottom progress bar from the actual score (0-100)
   const fillPercent =
     score !== null && score !== undefined
       ? Math.max(0, Math.min(100, score))
@@ -226,11 +253,7 @@ function Section({
 function DimensionTable({
   dimensions,
 }: {
-  dimensions: Array<{
-    dimension: string;
-    score: number;
-    weight: number;
-  }>;
+  dimensions: Array<{ dimension: string; score: number; weight: number }>;
 }) {
   if (!dimensions.length) {
     return <p className="muted">No dimension scores available.</p>;
@@ -245,11 +268,13 @@ function DimensionTable({
       </div>
 
       {dimensions.map((dimension) => (
-        <div className="dimension-row" key={dimension.dimension}>
+        <div
+          className="dimension-row"
+          key={dimension.dimension}
+          style={{ ["--dim-fill" as string]: `${dimension.score}%` }}
+        >
           <span>{pretty(dimension.dimension)}</span>
-
           <span className="dimension-score">{dimension.score.toFixed(1)}</span>
-
           <span className="dimension-weight">
             {(dimension.weight * 100).toFixed(0)}%
           </span>
@@ -286,14 +311,12 @@ function FindingList({
         >
           <div className="finding-header">
             <strong>{finding.title}</strong>
-
             <div className="finding-badges">
               {finding.category && (
                 <span className="category-pill">
                   {pretty(finding.category)}
                 </span>
               )}
-
               {finding.severity && (
                 <span
                   className={`severity severity-${finding.severity.toLowerCase()}`}
@@ -326,6 +349,10 @@ function FindingList({
     </div>
   );
 }
+
+/* =========================================================
+   DASHBOARD SECTIONS — unchanged from your version
+   ========================================================= */
 
 function ResumeOverview({ result }: { result: AnalysisResult }) {
   const resume = result.resume_profile;
@@ -418,7 +445,6 @@ function ResumeOverview({ result }: { result: AnalysisResult }) {
                       {education.degree ?? "Degree not specified"}
                     </strong>
                   </div>
-
                   {education.start_date || education.end_date ? (
                     <span className="education-period">
                       {education.start_date ?? "—"} →{" "}
@@ -432,7 +458,6 @@ function ResumeOverview({ result }: { result: AnalysisResult }) {
                     <span className="label">Field of study</span>
                     <span>{education.field_of_study ?? "Not specified"}</span>
                   </div>
-
                   <div>
                     <span className="label">Institution</span>
                     <span>{education.institution ?? "Not specified"}</span>
@@ -478,7 +503,6 @@ function ResumeOverview({ result }: { result: AnalysisResult }) {
               <article className="project-card" key={`project-${index}`}>
                 <div className="project-card-header">
                   <strong>{project.name ?? "Unnamed project"}</strong>
-
                   {project.start_date || project.end_date ? (
                     <span className="project-period">
                       {project.start_date ?? "—"} → {project.end_date ?? "—"}
@@ -710,7 +734,6 @@ function CareerSection({ career }: { career?: CareerIntelligence | null }) {
             <span className="label">Primary</span>
             <TagList items={career.primary_domains} />
           </div>
-
           <div>
             <span className="label">Secondary</span>
             <TagList items={career.secondary_domains} />
@@ -722,12 +745,10 @@ function CareerSection({ career }: { career?: CareerIntelligence | null }) {
         <h3>Strengths</h3>
         <TagList items={career.strengths} />
       </div>
-
       <div className="subsection">
         <h3>Limitations</h3>
         <TagList items={career.limitations} />
       </div>
-
       <div className="subsection">
         <h3>Transferable skills</h3>
         <TagList items={career.transferable_skills} />
@@ -748,17 +769,13 @@ function CareerSection({ career }: { career?: CareerIntelligence | null }) {
                     {scoreLabel(direction.fit_score)}
                   </span>
                 </div>
-
                 <span>{pretty(direction.direction)}</span>
-
                 <p>{direction.rationale}</p>
-
                 <div className="recommendation-meta">
                   <span>
                     Confidence: {confidenceLabel(direction.confidence)}
                   </span>
                 </div>
-
                 <EvidenceList evidence={direction.evidence} />
               </article>
             ))}
@@ -782,21 +799,17 @@ function CareerSection({ career }: { career?: CareerIntelligence | null }) {
 
       <div className="subsection">
         <h3>Skill priorities</h3>
-
         {career.skill_priorities?.length ? (
           <div className="finding-list">
             {career.skill_priorities.map((priority) => (
               <article className="finding" key={priority.skill_id}>
                 <div className="finding-header">
                   <strong>{priority.skill_name}</strong>
-
                   <span className="severity severity-medium">
                     {pretty(priority.priority)}
                   </span>
                 </div>
-
                 {priority.rationale && <p>{priority.rationale}</p>}
-
                 <div className="recommendation-meta">
                   <span>Skill ID: {priority.skill_id}</span>
                 </div>
@@ -815,15 +828,12 @@ function CareerSection({ career }: { career?: CareerIntelligence | null }) {
 
       <div className="subsection">
         <h3>Seniority reasoning</h3>
-
         {career.seniority_rationale && <p>{career.seniority_rationale}</p>}
-
         <EvidenceList evidence={career.seniority_evidence} />
       </div>
 
       <div className="subsection">
         <h3>Career intelligence metadata</h3>
-
         <div className="detail-grid">
           <div>
             <span className="label">Taxonomy version</span>
@@ -846,11 +856,10 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
     (job.metadata?.requirements as JobRequirement[] | undefined) ?? [];
 
   const requiredRequirements = requirements.filter(
-    (requirement) => requirement.requirement_type === "required",
+    (r) => r.requirement_type === "required",
   );
-
   const preferredRequirements = requirements.filter(
-    (requirement) => requirement.requirement_type === "preferred",
+    (r) => r.requirement_type === "preferred",
   );
 
   return (
@@ -891,7 +900,6 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
                   <strong>{requirement.text}</strong>
                   <span className="severity severity-high">Required</span>
                 </div>
-
                 <div className="recommendation-meta">
                   <span>{pretty(requirement.category)}</span>
                   {requirement.canonical_name && (
@@ -901,7 +909,6 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
                     Confidence: {confidenceLabel(requirement.confidence)}
                   </span>
                 </div>
-
                 <EvidenceList evidence={requirement.evidence} />
               </article>
             ))}
@@ -921,7 +928,6 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
                   <strong>{requirement.text}</strong>
                   <span className="severity severity-medium">Preferred</span>
                 </div>
-
                 <div className="recommendation-meta">
                   <span>{pretty(requirement.category)}</span>
                   {requirement.canonical_name && (
@@ -931,7 +937,6 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
                     Confidence: {confidenceLabel(requirement.confidence)}
                   </span>
                 </div>
-
                 <EvidenceList evidence={requirement.evidence} />
               </article>
             ))}
@@ -945,12 +950,10 @@ function JobOverview({ job }: { job?: JobProfile | null }) {
         <h3>Technical skills</h3>
         <TagList items={job.technical_skills} />
       </div>
-
       <div className="subsection">
         <h3>Soft skills</h3>
         <TagList items={job.soft_skills} />
       </div>
-
       <div className="subsection">
         <h3>Domain skills</h3>
         <TagList items={job.domain_skills} />
@@ -983,14 +986,11 @@ function MatchingSection({
     (job?.metadata?.requirements as JobRequirement[] | undefined) ?? [];
 
   const requirementById = new Map(
-    requirements.map((requirement) => [
-      requirement.requirement_id,
-      requirement,
-    ]),
+    requirements.map((r) => [r.requirement_id, r]),
   );
 
-  const relationshipClass = (relationship: string): string => {
-    switch (relationship) {
+  const relationshipClass = (r: string): string => {
+    switch (r) {
       case "exact":
       case "strong_semantic":
         return "info";
@@ -1004,13 +1004,14 @@ function MatchingSection({
     }
   };
 
-  const statusClass = (status: string): string => {
-    switch (status) {
+  const statusClass = (s: string): string => {
+    switch (s) {
       case "matched":
         return "info";
       case "partial":
+        return "medium";
       case "unmatched":
-      case "unknown":
+        return "high";
       default:
         return "medium";
     }
@@ -1035,7 +1036,6 @@ function MatchingSection({
 
       <div className="subsection">
         <h3>Skill matches</h3>
-
         {matching.skill_matches.length ? (
           <div className="finding-list">
             {matching.skill_matches.map((match, index) => (
@@ -1045,16 +1045,12 @@ function MatchingSection({
               >
                 <div className="finding-header">
                   <strong>{pretty(match.relationship)}</strong>
-
                   <div className="matching-badges">
                     <span
-                      className={`severity severity-${relationshipClass(
-                        match.relationship,
-                      )}`}
+                      className={`severity severity-${relationshipClass(match.relationship)}`}
                     >
                       {pretty(match.relationship)}
                     </span>
-
                     <span className="score-pill">
                       {(match.similarity * 100).toFixed(1)}% similarity
                     </span>
@@ -1069,7 +1065,6 @@ function MatchingSection({
 
                 <details className="evidence-details">
                   <summary>Technical match details & evidence</summary>
-
                   <div className="detail-grid matching-technical-details">
                     <div>
                       <span className="label">Resume skill ID</span>
@@ -1088,7 +1083,6 @@ function MatchingSection({
                       <strong>{confidenceLabel(match.confidence)}</strong>
                     </div>
                   </div>
-
                   <EvidenceList evidence={match.evidence} />
                 </details>
               </article>
@@ -1101,12 +1095,10 @@ function MatchingSection({
 
       <div className="subsection">
         <h3>Requirement alignments</h3>
-
         {matching.requirement_alignments.length ? (
           <div className="finding-list">
             {matching.requirement_alignments.map((alignment) => {
               const requirement = requirementById.get(alignment.requirement_id);
-
               return (
                 <article
                   className="finding matching-item"
@@ -1116,11 +1108,8 @@ function MatchingSection({
                     <strong>
                       {requirement?.text ?? alignment.requirement_id}
                     </strong>
-
                     <span
-                      className={`severity severity-${statusClass(
-                        alignment.status,
-                      )}`}
+                      className={`severity severity-${statusClass(alignment.status)}`}
                     >
                       {pretty(alignment.status)}
                     </span>
@@ -1131,13 +1120,10 @@ function MatchingSection({
                       <span className="matching-type">
                         {pretty(requirement.requirement_type)}
                       </span>
-
                       <span>Category: {pretty(requirement.category)}</span>
-
                       {requirement.canonical_name ? (
                         <span>Skill: {requirement.canonical_name}</span>
                       ) : null}
-
                       <span>
                         Confidence: {confidenceLabel(alignment.confidence)}
                       </span>
@@ -1148,7 +1134,6 @@ function MatchingSection({
 
                   <details className="evidence-details">
                     <summary>Requirement evidence & technical details</summary>
-
                     <div className="detail-grid matching-technical-details">
                       <div>
                         <span className="label">Requirement ID</span>
@@ -1209,10 +1194,7 @@ function RequirementsSection({
     (job.metadata?.requirements as JobRequirement[] | undefined) ?? [];
 
   const alignmentById = new Map(
-    (matching?.requirement_alignments ?? []).map((alignment) => [
-      alignment.requirement_id,
-      alignment,
-    ]),
+    (matching?.requirement_alignments ?? []).map((a) => [a.requirement_id, a]),
   );
 
   if (!requirements.length && !matching?.requirement_alignments.length) {
@@ -1225,17 +1207,13 @@ function RequirementsSection({
         <div className="finding-list">
           {requirements.map((requirement) => {
             const alignment = alignmentById.get(requirement.requirement_id);
-
             return (
               <article className="finding" key={requirement.requirement_id}>
                 <div className="finding-header">
                   <strong>{requirement.text}</strong>
-
                   {alignment ? (
                     <span
-                      className={`severity severity-${
-                        alignment.status === "matched" ? "info" : "medium"
-                      }`}
+                      className={`severity severity-${alignment.status === "matched" ? "info" : "medium"}`}
                     >
                       {pretty(alignment.status)}
                     </span>
@@ -1328,17 +1306,14 @@ function GapsSection({ result }: { result: AnalysisResult }) {
         <h3>Matched skills</h3>
         <TagList items={analysis.matched_skills} />
       </div>
-
       <div className="subsection">
         <h3>Partial matches</h3>
         <TagList items={analysis.partial_matches} />
       </div>
-
       <div className="subsection">
         <h3>Missing skills</h3>
         <TagList items={analysis.missing_skills} />
       </div>
-
       <div className="subsection">
         <h3>Transferable skills</h3>
         <TagList items={analysis.transferable_skills} />
@@ -1346,14 +1321,12 @@ function GapsSection({ result }: { result: AnalysisResult }) {
 
       <div className="subsection">
         <h3>Detailed gaps</h3>
-
         {analysis.gaps.length ? (
           <div className="finding-list">
             {analysis.gaps.map((gap: SkillGap) => (
               <article className="finding" key={gap.gap_id}>
                 <div className="finding-header">
                   <strong>{gap.target_skill_name}</strong>
-
                   <span className="severity severity-medium">
                     {pretty(gap.gap_type)}
                   </span>
@@ -1376,14 +1349,12 @@ function GapsSection({ result }: { result: AnalysisResult }) {
                     <span className="label">Confidence</span>
                     <strong>{confidenceLabel(gap.confidence)}</strong>
                   </div>
-
                   {gap.similarity !== null && gap.similarity !== undefined ? (
                     <div>
                       <span className="label">Similarity</span>
                       <strong>{(gap.similarity * 100).toFixed(1)}%</strong>
                     </div>
                   ) : null}
-
                   {gap.requirement_id ? (
                     <div>
                       <span className="label">Requirement ID</span>
@@ -1393,7 +1364,6 @@ function GapsSection({ result }: { result: AnalysisResult }) {
                 </div>
 
                 {gap.rationale ? <p>{gap.rationale}</p> : null}
-
                 <EvidenceList evidence={gap.evidence} />
               </article>
             ))}
@@ -1425,14 +1395,12 @@ function ScoringSection({ scoring }: { scoring?: ScoringResult | null }) {
 
       <div className="subsection">
         <h3>Score contributions</h3>
-
         {scoring.contributions?.length ? (
           <div className="finding-list">
             {scoring.contributions.map((contribution) => (
               <article className="finding" key={contribution.contribution_id}>
                 <div className="finding-header">
                   <strong>{pretty(contribution.dimension)}</strong>
-
                   <span className="score-pill">
                     {contribution.contribution >= 0 ? "+" : ""}
                     {contribution.contribution.toFixed(3)}
@@ -1461,7 +1429,6 @@ function ScoringSection({ scoring }: { scoring?: ScoringResult | null }) {
                 </div>
 
                 <p>{contribution.rationale}</p>
-
                 <div className="muted">Source ID: {contribution.source_id}</div>
               </article>
             ))}
@@ -1472,14 +1439,12 @@ function ScoringSection({ scoring }: { scoring?: ScoringResult | null }) {
       </div>
 
       <h3>Penalties</h3>
-
       {scoring.penalties?.length ? (
         <div className="finding-list">
           {scoring.penalties.map((adjustment, index) => (
             <article className="finding" key={`penalty-${index}`}>
               <div className="finding-header">
                 <strong>{adjustment.reason}</strong>
-
                 <span className="score-pill">
                   {adjustment.value > 0 ? "+" : ""}
                   {adjustment.value.toFixed(2)}
@@ -1493,14 +1458,12 @@ function ScoringSection({ scoring }: { scoring?: ScoringResult | null }) {
       )}
 
       <h3>Bonuses</h3>
-
       {scoring.bonuses?.length ? (
         <div className="finding-list">
           {scoring.bonuses.map((adjustment, index) => (
             <article className="finding" key={`bonus-${index}`}>
               <div className="finding-header">
                 <strong>{adjustment.reason}</strong>
-
                 <span className="score-pill">
                   {adjustment.value > 0 ? "+" : ""}
                   {adjustment.value.toFixed(2)}
@@ -1539,17 +1502,14 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
         <h3>Overall explanation</h3>
         <p>{xai.overall_explanation}</p>
       </div>
-
       <div className="subsection">
         <h3>Score explanation</h3>
         <p>{xai.score_explanation}</p>
       </div>
-
       <div className="subsection">
         <h3>Strengths</h3>
         <TagList items={xai.strengths} />
       </div>
-
       <div className="subsection">
         <h3>Weaknesses</h3>
         <TagList items={xai.weaknesses} />
@@ -1557,17 +1517,14 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
 
       <div className="subsection">
         <h3>Matched skill explanations</h3>
-
         {xai.matched_skill_explanations.length ? (
           xai.matched_skill_explanations.map((item) => (
             <article className="compact-card" key={item.skill_id}>
               <strong>{item.skill_id}</strong>
               <p>{item.explanation}</p>
-
               <p>
                 <strong>Confidence:</strong> {confidenceLabel(item.confidence)}
               </p>
-
               <EvidenceList evidence={item.evidence} />
             </article>
           ))
@@ -1578,18 +1535,14 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
 
       <div className="subsection">
         <h3>Partial-match explanations</h3>
-
         {xai.partial_match_explanations.length ? (
           xai.partial_match_explanations.map((item) => (
             <article className="compact-card" key={item.skill_id}>
               <strong>{item.skill_id}</strong>
-
               <p>{item.explanation}</p>
-
               <p>
                 <strong>Confidence:</strong> {confidenceLabel(item.confidence)}
               </p>
-
               <EvidenceList evidence={item.evidence} />
             </article>
           ))
@@ -1600,18 +1553,14 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
 
       <div className="subsection">
         <h3>Missing skill explanations</h3>
-
         {xai.missing_skill_explanations.length ? (
           xai.missing_skill_explanations.map((item) => (
             <article className="compact-card" key={item.skill_id}>
               <strong>{item.skill_id}</strong>
-
               <p>{item.explanation}</p>
-
               <p>
                 <strong>Confidence:</strong> {confidenceLabel(item.confidence)}
               </p>
-
               <EvidenceList evidence={item.evidence} />
             </article>
           ))
@@ -1622,7 +1571,6 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
 
       <div className="subsection">
         <h3>Evidence map</h3>
-
         {xai.evidence_map.length ? (
           <div className="finding-list">
             {xai.evidence_map.map((entry, index) => (
@@ -1636,11 +1584,9 @@ function XAISection({ xai }: { xai?: XAIResult | null }) {
                     {entry.evidence.length} evidence
                   </span>
                 </div>
-
                 <p>
                   <strong>Result ID:</strong> {entry.result_id}
                 </p>
-
                 <EvidenceList evidence={entry.evidence} />
               </article>
             ))}
@@ -1757,6 +1703,23 @@ function PromptSection({ prompt }: { prompt?: string | null }) {
   );
 }
 
+/* =========================================================
+   DASHBOARD WITH RESULTS
+   ========================================================= */
+
+/* =========================================================
+   ANALYSIS DASHBOARD — restructured
+   Hero → Overview tiles → Tabbed sections
+   ========================================================= */
+
+type DashboardTab =
+  | "resume"
+  | "quality"
+  | "ats"
+  | "language"
+  | "career"
+  | "matching";
+
 function AnalysisDashboard({
   result,
   onNewAnalysis,
@@ -1764,8 +1727,10 @@ function AnalysisDashboard({
   result: AnalysisResult;
   onNewAnalysis: () => void;
 }) {
+  const [tab, setTab] = useState<DashboardTab>("resume");
+
   const suitability = useMemo(() => {
-    if (!result.scoring) return "Resume-only analysis";
+    if (!result.scoring) return "Resume-only";
     const score = result.scoring.overall_score;
     if (score >= 75) return "Strong fit";
     if (score >= 55) return "Potential fit";
@@ -1773,120 +1738,206 @@ function AnalysisDashboard({
     return "Low fit";
   }, [result.scoring]);
 
-  return (
-    <main className="app-shell">
-      <Header active="dashboard" onNewAnalysis={onNewAnalysis} />
 
-      <div className="dashboard-heading">
-        <div>
-          <span className="eyebrow">Analysis dashboard</span>
-          <h1>
+  const tabs: { id: DashboardTab; label: string; count?: number }[] = [];
+
+  if (result.resume_profile) {
+    tabs.push({
+      id: "resume",
+      label: "Resume",
+      count: result.resume_profile.skills?.length,
+    });
+  }
+  if (result.resume_quality) {
+    tabs.push({
+      id: "quality",
+      label: "Quality",
+      count: result.resume_quality.findings.length,
+    });
+  }
+  if (result.ats_intelligence) {
+    tabs.push({
+      id: "ats",
+      label: "ATS",
+      count: result.ats_intelligence.findings.length,
+    });
+  }
+  if (result.language_quality) {
+    tabs.push({
+      id: "language",
+      label: "Language",
+      count: result.language_quality.issues.length,
+    });
+  }
+  if (result.career_intelligence) {
+    tabs.push({
+      id: "career",
+      label: "Career",
+      count: result.career_intelligence.career_directions?.length,
+    });
+  }
+  if (
+    result.analysis_mode === "resume_jd" &&
+    (result.matching || result.scoring)
+  ) {
+    tabs.push({
+      id: "matching",
+      label: "JD match",
+      count: result.matching?.requirement_alignments.length,
+    });
+  }
+
+  return (
+    <div className="dash">
+      <header className="dash-hero">
+        <div className="dash-hero__main">
+          <span className="dash-hero__eyebrow">
+            <span className="dash-hero__dot" aria-hidden="true" />
+            Analysis dashboard
+          </span>
+
+          <h1 className="dash-hero__title">
             {result.job_profile?.job_title ?? "Resume intelligence report"}
           </h1>
-          <p>
+
+          <p className="dash-hero__sub">
             {result.analysis_mode === "resume_jd"
               ? "Resume and job description analysis"
               : "Resume-only career analysis"}
+            {" · "}
+            <span className="dash-hero__id">
+              {result.analysis_id.slice(0, 8)}
+            </span>
           </p>
+
+          <div className="dash-hero__actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={onNewAnalysis}
+            >
+              New analysis
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => {
+                navigator.clipboard.writeText(result.analysis_id);
+              }}
+            >
+              Copy ID
+            </button>
+          </div>
         </div>
 
-        <div
-          className="status-card"
-          data-tier={
-            !result.scoring
-              ? "none"
-              : result.scoring.overall_score >= 75
-                ? "strong"
-                : result.scoring.overall_score >= 55
-                  ? "potential"
-                  : result.scoring.overall_score >= 35
-                    ? "weak"
-                    : "low"
-          }
-          style={
-            {
-              ["--status-score" as string]:
-                result.scoring?.overall_score ?? 0,
-            } as React.CSSProperties
-          }
-        >
-          <div className="status-card__ring" aria-hidden="true">
-            <span className="status-card__score">
-              {result.scoring
-                ? Math.round(result.scoring.overall_score)
-                : "—"}
-            </span>
+        <div className="dash-status">
+          <div className="dash-status__tick" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M5 12.5l4.5 4.5L19 7.5"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
 
-          <span className="label">Assessment</span>
-          <strong>{suitability}</strong>
-          {result.scoring ? (
-            <span className="status-card__meta">
-              {scoreLabel(result.scoring.overall_score)}
+          <div className="dash-status__meta">
+            <span className="dash-status__label">Assessment</span>
+            <strong className="dash-status__value">{suitability}</strong>
+            <span className="dash-status__sub">
+              {result.scoring
+                ? `${scoreLabel(result.scoring.overall_score)} overall`
+                : "Resume-only · no JD"}
             </span>
-          ) : (
-            <span className="status-card__meta">Resume-only · no JD</span>
-          )}
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="score-grid hero-scores">
+      <section className="dash-overview" aria-label="Score overview">
         {result.resume_quality && (
           <ScoreCard
             label="Resume quality"
             score={result.resume_quality.overall_score}
+            description={`Confidence ${confidenceLabel(
+              result.resume_quality.confidence,
+            )}`}
           />
         )}
         {result.ats_intelligence && (
           <ScoreCard
-            label="ATS"
+            label="ATS readiness"
             score={result.ats_intelligence.overall_score}
+            description={`Confidence ${confidenceLabel(
+              result.ats_intelligence.confidence,
+            )}`}
           />
         )}
         {result.language_quality && (
           <ScoreCard
-            label="Language"
+            label="Language quality"
             score={result.language_quality.overall_score}
+            description={
+              result.language_quality.authorship_heuristic.level
+            }
           />
         )}
-        {result.analysis_mode === "resume_jd" && result.scoring && (
-          <ScoreCard label="JD fit" score={result.scoring.overall_score} />
-        )}
-      </div>
+      </section>
 
-      <div className="dashboard-content">
-        <ResumeOverview result={result} />
-        <QualitySection quality={result.resume_quality} />
-        <ATSSection ats={result.ats_intelligence} />
-        <LanguageSection language={result.language_quality} />
-        <CareerSection career={result.career_intelligence} />
-        {result.analysis_mode === "resume_jd" && (
+      <nav className="dash-tabs" aria-label="Report sections">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`dash-tab ${tab === t.id ? "is-active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="dash-tab__label">{t.label}</span>
+            {t.count != null && t.count > 0 && (
+              <span className="dash-tab__count">{t.count}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="dash-panel">
+        {tab === "resume" && <ResumeOverview result={result} />}
+        {tab === "quality" && (
+          <QualitySection quality={result.resume_quality} />
+        )}
+        {tab === "ats" && (
+          <ATSSection ats={result.ats_intelligence} />
+        )}
+        {tab === "language" && (
+          <LanguageSection language={result.language_quality} />
+        )}
+        {tab === "career" && (
+          <CareerSection career={result.career_intelligence} />
+        )}
+        {tab === "matching" && (
           <>
             <JobOverview job={result.job_profile} />
-
             <MatchingSection
               matching={result.matching}
               job={result.job_profile}
             />
-
             <RequirementsSection
               job={result.job_profile}
               matching={result.matching}
             />
-
             <GapsSection result={result} />
-
             <ScoringSection scoring={result.scoring} />
-
             <XAISection xai={result.xai} />
           </>
         )}
+      </div>
 
+      <section className="dash-secondary">
         <RecommendationSection recommendations={result.recommendations} />
-
         <PromptSection prompt={result.resume_improvement_prompt} />
 
-        <Section title="Analysis metadata" eyebrow="Technical verification">
+        <Section title="Analysis metadata" eyebrow="Technical">
           <div className="detail-grid">
             <div>
               <span className="label">Analysis ID</span>
@@ -1907,8 +1958,7 @@ function AnalysisDashboard({
             <div>
               <span className="label">Processing time</span>
               <strong>
-                {result.metadata.processing_time_ms !== null &&
-                result.metadata.processing_time_ms !== undefined
+                {result.metadata.processing_time_ms != null
                   ? `${result.metadata.processing_time_ms} ms`
                   : "—"}
               </strong>
@@ -1925,167 +1975,290 @@ function AnalysisDashboard({
             <div className="warning-box">
               <strong>Analysis warnings</strong>
               <ul>
-                {result.metadata.warnings.map((warning, index) => (
-                  <li key={`${warning}-${index}`}>{warning}</li>
+                {result.metadata.warnings.map((w, i) => (
+                  <li key={`${w}-${i}`}>{w}</li>
                 ))}
               </ul>
             </div>
           )}
-        </Section>
 
-        <Section title="Raw AnalysisResult" eyebrow="Temporary verification">
           <details>
             <summary>Open canonical JSON</summary>
-            <pre className="json-output">{JSON.stringify(result, null, 2)}</pre>
+            <pre className="json-output">
+              {JSON.stringify(result, null, 2)}
+            </pre>
           </details>
         </Section>
-      </div>
-    </main>
+      </section>
+    </div>
   );
 }
+
+/* =========================================================
+   ZERO-STATE DASHBOARD (Home with no analysis)
+   ========================================================= */
+
+function ZeroStateDashboard({
+  onStartAnalysis,
+}: {
+  onStartAnalysis: () => void;
+}) {
+  return (
+    <div className="zero-state">
+      <section className="zero-hero">
+        <span className="eyebrow">Analysis dashboard</span>
+        <h1>No analysis yet</h1>
+        <p>
+          Run your first analysis to unlock resume quality, ATS readiness,
+          career direction, and job-fit scoring — all backed by evidence you can
+          inspect.
+        </p>
+
+        <div className="zero-cta">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onStartAnalysis}
+          >
+            Run your first analysis
+          </button>
+        </div>
+      </section>
+
+      <section className="zero-modules" aria-label="What you'll get">
+        <article className="zero-module">
+          <span className="zero-module__index">01</span>
+          <h3>Resume quality</h3>
+          <p>Structure, clarity, and completeness scoring with findings.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "62%" }} />
+          </div>
+        </article>
+
+        <article className="zero-module">
+          <span className="zero-module__index">02</span>
+          <h3>ATS readiness</h3>
+          <p>Machine-readability, keyword parsing, and format analysis.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "84%" }} />
+          </div>
+        </article>
+
+        <article className="zero-module">
+          <span className="zero-module__index">03</span>
+          <h3>Career intelligence</h3>
+          <p>Direction, seniority, transferable strengths, and paths.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "47%" }} />
+          </div>
+        </article>
+
+        <article className="zero-module">
+          <span className="zero-module__index">04</span>
+          <h3>Skills & gaps</h3>
+          <p>Matched, partial, missing, and transferable skills.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "73%" }} />
+          </div>
+        </article>
+
+        <article className="zero-module">
+          <span className="zero-module__index">05</span>
+          <h3>Explainability</h3>
+          <p>Every score traceable to evidence in your resume and JD.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "100%" }} />
+          </div>
+        </article>
+
+        <article className="zero-module">
+          <span className="zero-module__index">06</span>
+          <h3>Recommendations</h3>
+          <p>Prioritized actions ranked by impact and effort.</p>
+          <div className="zero-module__preview" aria-hidden="true">
+            <span className="preview-bar" style={{ width: "58%" }} />
+          </div>
+        </article>
+      </section>
+
+      <section className="zero-steps">
+        <div className="zero-step">
+          <span className="zero-step__num">1</span>
+          <div>
+            <h4>Upload your resume</h4>
+            <p>PDF or DOCX, up to 10 MB.</p>
+          </div>
+        </div>
+        <div className="zero-step">
+          <span className="zero-step__num">2</span>
+          <div>
+            <h4>Add a job description (optional)</h4>
+            <p>Unlock JD-specific matching, gaps, and fit scoring.</p>
+          </div>
+        </div>
+        <div className="zero-step">
+          <span className="zero-step__num">3</span>
+          <div>
+            <h4>Get the report</h4>
+            <p>Evidence-backed findings and next actions in seconds.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
+   LANDING
+   ========================================================= */
 
 function LandingPage({ onStart }: { onStart: () => void }) {
   return (
-    <main className="app-shell landing-page">
-      <Header active="landing" />
+    <div className="landing-grid">
+      <section className="landing-copy">
+        <span className="eyebrow">Explainable career intelligence</span>
 
-      <div className="landing-grid">
-        <section className="landing-copy">
-          <span className="eyebrow">Explainable career intelligence</span>
+        <h1>
+          Understand what your resume says, where it fits,{" "}
+          <em>and what to improve.</em>
+        </h1>
 
-          <h1>
-            Understand what your resume says, where it fits,{" "}
-            <em>and what to improve.</em>
-          </h1>
+        <p>
+          SkillLens analyzes resume quality, ATS readiness, career direction,
+          language quality, job alignment, skill gaps, recommendations and
+          evidence-backed explanations.
+        </p>
+      </section>
 
-          <p>
-            SkillLens analyzes resume quality, ATS readiness, career direction,
-            language quality, job alignment, skill gaps, recommendations and
-            evidence-backed explanations.
-          </p>
-        </section>
-
-        <div className="landing-cta">
-          <button type="button" className="primary-button" onClick={onStart}>
-            Analyze a resume
-          </button>
-
-          <button type="button" className="ghost-button" onClick={onStart}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            Watch demo
-          </button>
-        </div>
-
-        <div className="landing-stats">
-          <span className="stat"><strong>10k+</strong> resumes analyzed</span>
-          <span className="sep" aria-hidden="true" />
-          <span className="stat"><strong>98%</strong> parsing accuracy</span>
-          <span className="sep" aria-hidden="true" />
-          <span className="stat"><strong>6</strong> analysis modules</span>
-          <span className="sep" aria-hidden="true" />
-          <span className="stat"><strong>100%</strong> evidence-backed</span>
-        </div>
-
-        <div className="landing-preview" aria-hidden="true">
-          <div className="landing-preview__chrome">
-            <span className="dot red" />
-            <span className="dot amber" />
-            <span className="dot green" />
-            <span className="url">skilllens.app / dashboard</span>
-          </div>
-
-          <div className="landing-preview__body">
-            <div className="preview-card">
-              <div className="k">Resume quality</div>
-              <div className="v">78.9</div>
-              <div className="bar"><i /></div>
-              <div className="meta">Confidence · high</div>
-            </div>
-
-            <div className="preview-card">
-              <div className="k">ATS readiness</div>
-              <div className="v">92.7</div>
-              <div className="bar"><i /></div>
-              <div className="meta">Machine readable</div>
-            </div>
-
-            <div className="preview-card">
-              <div className="k">JD fit</div>
-              <div className="v">94.0</div>
-              <div className="bar"><i /></div>
-              <div className="meta">Semantic match</div>
-            </div>
-          </div>
-
-          <span className="landing-preview__chip left">
-            <span className="swatch" />
-            Strong fit · 82.4
-          </span>
-          <span className="landing-preview__chip right">
-            <span className="swatch" />
-            6 skill matches
-          </span>
-        </div>
-
-        <section className="landing-map" aria-label="Analysis modules">
-          <div className="map-node node-main" aria-hidden="true" />
-          <div className="map-line" aria-hidden="true" />
-
-          <div className="map-node">
-            <span className="node-index">01</span>
-            <strong>Quality</strong>
-            <span>Resume structure, clarity & completeness.</span>
-          </div>
-
-          <div className="map-node">
-            <span className="node-index">02</span>
-            <strong>ATS</strong>
-            <span>Machine-readability & format parsing.</span>
-          </div>
-
-          <div className="map-node">
-            <span className="node-index">03</span>
-            <strong>Career</strong>
-            <span>Direction, seniority & transferable strengths.</span>
-          </div>
-
-          <div className="map-node">
-            <span className="node-index">04</span>
-            <strong>Skills</strong>
-            <span>Matched, partial, missing & transferable.</span>
-          </div>
-
-          <div className="map-node">
-            <span className="node-index">05</span>
-            <strong>XAI</strong>
-            <span>Evidence-backed explanations for every call.</span>
-          </div>
-
-          <div className="map-node">
-            <span className="node-index">06</span>
-            <strong>Actions</strong>
-            <span>Prioritized improvements by impact & effort.</span>
-          </div>
-        </section>
+      <div className="landing-cta">
+        <button type="button" className="primary-button" onClick={onStart}>
+          Analyze a resume
+        </button>
+        <button type="button" className="ghost-button" onClick={onStart}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Watch demo
+        </button>
       </div>
-    </main>
+
+      <div className="landing-stats">
+        <span className="stat">
+          <strong>10k+</strong> resumes analyzed
+        </span>
+        <span className="sep" aria-hidden="true" />
+        <span className="stat">
+          <strong>98%</strong> parsing accuracy
+        </span>
+        <span className="sep" aria-hidden="true" />
+        <span className="stat">
+          <strong>6</strong> analysis modules
+        </span>
+        <span className="sep" aria-hidden="true" />
+        <span className="stat">
+          <strong>100%</strong> evidence-backed
+        </span>
+      </div>
+
+      <div className="landing-preview" aria-hidden="true">
+        <div className="landing-preview__chrome">
+          <span className="dot red" />
+          <span className="dot amber" />
+          <span className="dot green" />
+          <span className="url">skilllens.app / dashboard</span>
+        </div>
+
+        <div className="landing-preview__body">
+          <div className="preview-card">
+            <div className="k">Resume quality</div>
+            <div className="v">78.9</div>
+            <div className="bar">
+              <i />
+            </div>
+            <div className="meta">Confidence · high</div>
+          </div>
+          <div className="preview-card">
+            <div className="k">ATS readiness</div>
+            <div className="v">92.7</div>
+            <div className="bar">
+              <i />
+            </div>
+            <div className="meta">Machine readable</div>
+          </div>
+          <div className="preview-card">
+            <div className="k">JD fit</div>
+            <div className="v">94.0</div>
+            <div className="bar">
+              <i />
+            </div>
+            <div className="meta">Semantic match</div>
+          </div>
+        </div>
+
+        <span className="landing-preview__chip left">
+          <span className="swatch" /> Strong fit · 82.4
+        </span>
+        <span className="landing-preview__chip right">
+          <span className="swatch" /> 6 skill matches
+        </span>
+      </div>
+
+      <section className="landing-map" aria-label="Analysis modules">
+        <div className="map-node node-main" aria-hidden="true" />
+        <div className="map-line" aria-hidden="true" />
+
+        <div className="map-node">
+          <span className="node-index">01</span>
+          <strong>Quality</strong>
+          <span>Resume structure, clarity & completeness.</span>
+        </div>
+        <div className="map-node">
+          <span className="node-index">02</span>
+          <strong>ATS</strong>
+          <span>Machine-readability & format parsing.</span>
+        </div>
+        <div className="map-node">
+          <span className="node-index">03</span>
+          <strong>Career</strong>
+          <span>Direction, seniority & transferable strengths.</span>
+        </div>
+        <div className="map-node">
+          <span className="node-index">04</span>
+          <strong>Skills</strong>
+          <span>Matched, partial, missing & transferable.</span>
+        </div>
+        <div className="map-node">
+          <span className="node-index">05</span>
+          <strong>XAI</strong>
+          <span>Evidence-backed explanations for every call.</span>
+        </div>
+        <div className="map-node">
+          <span className="node-index">06</span>
+          <strong>Actions</strong>
+          <span>Prioritized improvements by impact & effort.</span>
+        </div>
+      </section>
+    </div>
   );
 }
 
+/* =========================================================
+   INPUT
+   ========================================================= */
+
 function InputPage({
   onSubmit,
-  onBack,
   error,
 }: {
   onSubmit: (resume: File | null, jd: File | null, jdText: string) => void;
-  onBack: () => void;
   error: string | null;
 }) {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jdFile, setJdFile] = useState<File | null>(null);
   const [jdText, setJdText] = useState("");
+
+  const [resumeDragging, setResumeDragging] = useState(false);
+  const [jdDragging, setJdDragging] = useState(false);
 
   const resumeInputValid = Boolean(resumeFile);
   const jdInputValid =
@@ -2103,126 +2276,285 @@ function InputPage({
     if (file) setJdText("");
   }
 
+  function fileSizeLabel(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   return (
-    <main className="app-shell">
-      <Header active="input" subtitle="Input" onBack={onBack} />
-
-      <section className="input-page">
-        <div className="page-intro">
-          <span className="eyebrow">Step 01</span>
+    <section className="upload-page">
+      {/* ---------- Hero (now includes the CTA) ---------- */}
+      <div className="upload-hero">
+        <div className="upload-hero__top">
+          <span className="eyebrow">Step 01 · Setup</span>
           <h1>Give SkillLens your resume.</h1>
-          <p>
-            A job description is optional. Without one, SkillLens performs
-            resume quality, ATS, language, career and recommendation analysis.
-            With one, it adds job-specific matching and fit analysis.
+        </div>
+
+        <p>
+          Upload a resume to unlock quality, ATS, language, career, and
+          recommendation analysis. Add a job description to unlock JD-specific
+          matching and fit scoring.
+        </p>
+
+        {/* Alerts sit inside the hero so they appear right under the CTA row */}
+        {(!jdInputValid || error) && (
+          <div className="upload-alerts upload-alerts--inline">
+            {!jdInputValid && (
+              <div className="warning-box">
+                Provide the job description as either a file or pasted text —
+                not both.
+              </div>
+            )}
+            {error && <div className="error-box">{error}</div>}
+          </div>
+        )}
+
+        {/* Primary CTA — always visible above the fold */}
+        <div className="upload-cta upload-cta--hero">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!canSubmit}
+            onClick={() => onSubmit(resumeFile, jdFile, jdText.trim())}
+          >
+            Run SkillLens analysis
+          </button>
+          <span className="upload-cta__hint">
+            Takes about 5–10 seconds · Nothing is stored on our servers
+          </span>
+        </div>
+      </div>
+
+      {/* ---------- Two symmetrical cards ---------- */}
+      <div className="upload-grid">
+        {/* ---- Resume (required) ---- */}
+        <section className="upload-card upload-card--required">
+          <header className="upload-card__head">
+            <div className="upload-card__title">
+              <span className="upload-card__tag">Required</span>
+              <h2>Resume</h2>
+            </div>
+            <span className="upload-card__index" aria-hidden="true">
+              01
+            </span>
+          </header>
+
+          <p className="upload-card__desc">
+            PDF or DOCX · up to 10 MB. Text is extracted locally before it
+            leaves your browser.
           </p>
-        </div>
 
-        <div className="input-grid">
-          <section className="input-card">
-            <span className="eyebrow">Required</span>
-            <h2>Resume</h2>
-            <p>Upload your resume as a PDF or DOCX file.</p>
-
-            <label className="file-drop">
-              <span>Choose PDF or DOCX</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(event) =>
-                  handleResumeFile(event.target.files?.[0] ?? null)
-                }
-              />
-            </label>
-
-            {resumeFile && (
-              <div className="selected-file">
-                Selected: <strong>{resumeFile.name}</strong>
-              </div>
-            )}
-          </section>
-
-          <section className="input-card">
-            <span className="eyebrow">Optional</span>
-            <h2>Job description</h2>
-            <p>
-              Add a PDF/DOCX file or paste text to activate resume ↔ JD
-              analysis.
-            </p>
-
-            <label className="file-drop">
-              <span>Choose PDF or DOCX</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(event) =>
-                  handleJdFile(event.target.files?.[0] ?? null)
-                }
-              />
-            </label>
-
-            {jdFile && (
-              <div className="selected-file">
-                Selected: <strong>{jdFile.name}</strong>
-              </div>
-            )}
-
-            <div className="divider">OR</div>
-
-            <textarea
-              value={jdText}
-              onChange={(event) => {
-                setJdText(event.target.value);
-                if (event.target.value.trim()) setJdFile(null);
-              }}
-              placeholder="Paste job description text here..."
+          <label
+            className={`upload-drop ${resumeDragging ? "is-dragging" : ""} ${
+              resumeFile ? "has-file" : ""
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setResumeDragging(true);
+            }}
+            onDragLeave={() => setResumeDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setResumeDragging(false);
+              const file = e.dataTransfer.files?.[0] ?? null;
+              if (file) handleResumeFile(file);
+            }}
+          >
+            <input
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => handleResumeFile(e.target.files?.[0] ?? null)}
             />
-          </section>
-        </div>
 
-        {!resumeInputValid && (
-          <div className="warning-box">
-            Upload a resume as a PDF or DOCX file.
+            <span className="upload-drop__icon" aria-hidden="true">
+              {resumeFile ? (
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 2h9l5 5v15H6z" />
+                  <path d="M15 2v5h5" />
+                  <path d="M9 13l2 2 4-4" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 16V4" />
+                  <path d="M7 9l5-5 5 5" />
+                  <path d="M5 20h14" />
+                </svg>
+              )}
+            </span>
+
+            {resumeFile ? (
+              <>
+                <strong className="upload-drop__filename">
+                  {resumeFile.name}
+                </strong>
+                <span className="upload-drop__meta">
+                  {fileSizeLabel(resumeFile.size)} · Ready to analyze
+                </span>
+                <span className="upload-drop__action">Replace file</span>
+              </>
+            ) : (
+              <>
+                <strong className="upload-drop__title">
+                  Drop your resume here
+                </strong>
+                <span className="upload-drop__meta">
+                  or click to browse · PDF, DOCX
+                </span>
+                <span className="upload-drop__action">Choose file</span>
+              </>
+            )}
+          </label>
+
+          <div className="upload-card__foot">
+            <span
+              className={`upload-status ${resumeFile ? "is-ok" : "is-idle"}`}
+            >
+              <span className="upload-status__dot" aria-hidden="true" />
+              {resumeFile ? "Ready" : "Waiting for file"}
+            </span>
           </div>
-        )}
+        </section>
 
-        {!jdInputValid && (
-          <div className="warning-box">
-            Provide the job description as either a PDF/DOCX file or pasted
-            text, not both.
+        {/* ---- JD (optional) ---- */}
+        <section className="upload-card upload-card--optional">
+          <header className="upload-card__head">
+            <div className="upload-card__title">
+              <span className="upload-card__tag upload-card__tag--optional">
+                Optional
+              </span>
+              <h2>Job description</h2>
+            </div>
+            <span className="upload-card__index" aria-hidden="true">
+              02
+            </span>
+          </header>
+
+          <p className="upload-card__desc">
+            Add a JD as a file or paste the text. Activates matching, gaps, and
+            fit scoring.
+          </p>
+
+          {!jdFile && (
+            <label
+              className={`upload-drop upload-drop--compact ${
+                jdDragging ? "is-dragging" : ""
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setJdDragging(true);
+              }}
+              onDragLeave={() => setJdDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setJdDragging(false);
+                const file = e.dataTransfer.files?.[0] ?? null;
+                if (file) handleJdFile(file);
+              }}
+            >
+              <input
+                type="file"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => handleJdFile(e.target.files?.[0] ?? null)}
+              />
+
+              <span className="upload-drop__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 16V4" />
+                  <path d="M7 9l5-5 5 5" />
+                  <path d="M5 20h14" />
+                </svg>
+              </span>
+
+              <strong className="upload-drop__title">Drop JD file here</strong>
+              <span className="upload-drop__meta">
+                PDF, DOCX · or paste below
+              </span>
+            </label>
+          )}
+
+          {jdFile && (
+            <div className="upload-file-chip">
+              <span className="upload-file-chip__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 2h9l5 5v15H6z" />
+                  <path d="M15 2v5h5" />
+                </svg>
+              </span>
+              <div className="upload-file-chip__body">
+                <strong>{jdFile.name}</strong>
+                <span>{fileSizeLabel(jdFile.size)} · Attached</span>
+              </div>
+              <button
+                type="button"
+                className="upload-file-chip__remove"
+                aria-label="Remove job description file"
+                onClick={() => setJdFile(null)}
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className="upload-or">
+            <span>OR paste text</span>
           </div>
-        )}
 
-        {error && <div className="error-box">{error}</div>}
+          <textarea
+            className="upload-textarea"
+            value={jdText}
+            onChange={(e) => {
+              setJdText(e.target.value);
+              if (e.target.value.trim()) setJdFile(null);
+            }}
+            placeholder="Paste the job description here…"
+          />
 
-        <button
-          type="button"
-          className="primary-button submit-button"
-          disabled={!canSubmit}
-          onClick={() => onSubmit(resumeFile, jdFile, jdText.trim())}
-        >
-          Run SkillLens analysis
-        </button>
-      </section>
-    </main>
+          <div className="upload-card__foot">
+            <span
+              className={`upload-status ${
+                jdFile || jdText.trim() ? "is-ok" : "is-idle"
+              }`}
+            >
+              <span className="upload-status__dot" aria-hidden="true" />
+              {jdFile
+                ? "File attached"
+                : jdText.trim()
+                  ? `${jdText.trim().length} characters`
+                  : "Optional · skip if not needed"}
+            </span>
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
+/* =========================================================
+   ANALYZING
+   ========================================================= */
+
 function AnalyzingPage() {
   return (
-    <main className="app-shell analyzing-page">
+    <div className="analyzing-view">
       <div className="analysis-loader">
         <div className="loader-ring" />
         <span className="eyebrow">Analysis running</span>
         <h1>Reading your resume.</h1>
         <p>
-          SkillLens is processing the document through the existing analysis
-          pipeline. This may take a moment.
+          SkillLens is processing the document through the analysis pipeline.
+          This may take a moment.
         </p>
       </div>
-    </main>
+    </div>
   );
 }
+
+/* =========================================================
+   API
+   ========================================================= */
 
 async function parseApiError(response: Response): Promise<string> {
   try {
@@ -2233,9 +2565,8 @@ async function parseApiError(response: Response): Promise<string> {
         : payload.message;
     }
   } catch {
-    // Fall through to status text.
+    // fall through
   }
-
   return `Request failed with HTTP ${response.status}.`;
 }
 
@@ -2267,17 +2598,13 @@ async function runAnalysis(
     JSON.stringify({
       source: "skilllens-web",
       session_id: null,
-      extra: {
-        frontend_version: "phase9-temporary-ui-v1",
-      },
+      extra: { frontend_version: "phase9-temporary-ui-v3" },
     }),
   );
 
   let endpoint = `${API_BASE}/analyses/resume`;
-
   if (hasJd) {
     endpoint = `${API_BASE}/analyses/resume-jd`;
-
     if (jd) {
       form.append("job_description", jd);
     } else {
@@ -2285,28 +2612,36 @@ async function runAnalysis(
     }
   }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    body: form,
-  });
+  const response = await fetch(endpoint, { method: "POST", body: form });
 
   if (!response.ok) {
     throw new Error(await parseApiError(response));
   }
 
   const payload = (await response.json()) as { data: AnalysisResult };
-
   if (!payload.data) {
     throw new Error("The API returned no AnalysisResult.");
   }
-
   return payload.data;
 }
+
+/* =========================================================
+   APP
+   ========================================================= */
 
 function App() {
   const [page, setPage] = useState<Page>("landing");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [page]);
+
+  function navigate(next: Page) {
+    setError(null);
+    setPage(next);
+  }
 
   async function handleSubmit(
     resume: File | null,
@@ -2315,7 +2650,6 @@ function App() {
   ) {
     setError(null);
     setPage("analyzing");
-
     try {
       const result = await runAnalysis(resume, jd, jdText);
       setAnalysis(result);
@@ -2330,41 +2664,43 @@ function App() {
     }
   }
 
+  function handleNewAnalysis() {
+    setAnalysis(null);
+    setError(null);
+    setPage("input");
+  }
+
+  const analysisExists = Boolean(analysis);
+
+  /* ---------- routing ---------- */
+
+  let body: React.ReactNode = null;
+
   if (page === "landing") {
-    return <LandingPage onStart={() => setPage("input")} />;
-  }
-
-  if (page === "input") {
-    return (
-      <InputPage
-        onSubmit={handleSubmit}
-        onBack={() => {
-          setError(null);
-          setPage("landing");
-        }}
-        error={error}
-      />
+    body = <LandingPage onStart={() => navigate("input")} />;
+  } else if (page === "input") {
+    body = <InputPage onSubmit={handleSubmit} error={error} />;
+  } else if (page === "analyzing") {
+    body = <AnalyzingPage />;
+  } else if (page === "dashboard") {
+    body = analysis ? (
+      <AnalysisDashboard result={analysis} onNewAnalysis={handleNewAnalysis} />
+    ) : (
+      <ZeroStateDashboard onStartAnalysis={() => navigate("input")} />
     );
   }
 
-  if (page === "analyzing") {
-    return <AnalyzingPage />;
-  }
-
-  if (analysis) {
-    return (
-      <AnalysisDashboard
-        result={analysis}
-        onNewAnalysis={() => {
-          setAnalysis(null);
-          setError(null);
-          setPage("input");
-        }}
+  return (
+    <main className="app-shell">
+      <Header
+        page={page}
+        onNavigate={navigate}
+        onNewAnalysis={handleNewAnalysis}
+        analysisExists={analysisExists}
       />
-    );
-  }
-
-  return null;
+      <div className="app-content">{body}</div>
+    </main>
+  );
 }
 
 export default App;

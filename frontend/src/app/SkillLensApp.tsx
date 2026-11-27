@@ -414,7 +414,7 @@ export default function SkillLensApp() {
         else throw new Error("Provide a job description file or paste its text.");
       }
 
-      const endpoint = mode === "resume_jd" ? "/resume-jd" : "/resume";
+      const endpoint = mode === "resume_jd" ? "/analyses/resume-jd" : "/analyses/resume";
       const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         body: form,
@@ -424,8 +424,8 @@ export default function SkillLensApp() {
         let message = `Analysis failed (${response.status}).`;
         try {
           const body = await response.json();
-          if (body?.detail?.message) message = body.detail.message;
-          else if (body?.detail) message = String(body.detail);
+          if (body?.message) message = body.message;
+          else if (body?.detail?.message) message = body.detail.message;
         } catch {
           /* keep default message */
         }

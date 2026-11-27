@@ -223,7 +223,12 @@ class PDFParser(DocumentParser):
         bold = bool(span_info.get("bold"))
         is_short = len(first_line) <= 80 and len(lines) <= 2
 
-        if is_short and (size >= body_size + 1.0 or (bold and size >= body_size)):
+        if is_short and size >= body_size + 1.0:
+            return DocumentBlockType.HEADING
+
+        # Bold alone (same size as body) is not enough: project titles and
+        # degree lines are commonly bold. Require ALL CAPS as well.
+        if is_short and bold and first_line.isupper():
             return DocumentBlockType.HEADING
 
         return DocumentBlockType.PARAGRAPH

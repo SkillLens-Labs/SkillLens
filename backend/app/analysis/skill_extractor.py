@@ -23,6 +23,15 @@ from backend.app.analysis.skill_taxonomy import Taxonomy
 from backend.app.infrastructure.parsers.models import DocumentBlock
 
 
+# Module-level vocabulary tables. These must live outside the class
+# because generator expressions in a class body cannot see class-level
+# attributes.
+_SKILL_TERMS: tuple[str, ...] = (*Taxonomy.canonical_names, *Taxonomy.aliases)
+_CASE_SENSITIVE_KEYS = frozenset(
+    key.lower() for key in Taxonomy.case_sensitive_alias_to_canonical
+)
+
+
 class SkillEvidenceType:
     EXPLICIT = "explicit"
     CONTEXTUAL = "contextual"
@@ -77,17 +86,13 @@ class SkillExtractor:
     # instead, so "Go", "R", "C" and "AI" never fire inside ordinary words.
     _KNOWN_SKILLS: tuple[str, ...] = Taxonomy.canonical_names
 
-    _CASE_SENSITIVE_KEYS = frozenset(
-        key.lower() for key in Taxonomy.case_sensitive_alias_to_canonical
-    )
-
     _SKILL_PATTERN = re.compile(
         r"(?<!\w)"
         + "("
         + "|".join(
             re.escape(term)
             for term in sorted(
-                (*Taxonomy.canonical_names, *Taxonomy.aliases),
+                (*_SKILL_TERMS,),
                 key=lambda term: (-len(term), term),
             )
             if term.lower() not in _CASE_SENSITIVE_KEYS

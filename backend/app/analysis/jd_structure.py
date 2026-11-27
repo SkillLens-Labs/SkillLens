@@ -189,6 +189,7 @@ class JDStructureInterpreter:
                 current_type = heading_type
                 current_heading = block.text.strip()
                 current_blocks = []
+                continue
 
             current_blocks.append(block)
 

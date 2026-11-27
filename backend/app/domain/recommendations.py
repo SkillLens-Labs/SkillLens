@@ -42,6 +42,17 @@ class RecommendationImpact(StrEnum):
     HIGH = "high"
 
 
+class LearningResourceRef(BaseModel):
+    """A curated certification or course attached to a recommendation."""
+
+    kind: str
+    title: str
+    provider: str
+    level: str
+    url: str
+    related_skill: str
+
+
 class Recommendation(BaseModel):
     """
     Canonical evidence-backed recommendation.
@@ -87,3 +98,6 @@ class Recommendation(BaseModel):
     # Identifies the deterministic engine responsible for the
     # recommendation. Useful for reproducibility and future versioning.
     source_engine: str = "recommendation-intelligence-v1"
+
+    # Curated certifications/courses that address this recommendation.
+    resources: list[LearningResourceRef] = Field(default_factory=list)

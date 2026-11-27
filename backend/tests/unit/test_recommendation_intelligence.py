@@ -158,6 +158,11 @@ def test_required_unmatched_gap_generates_high_priority_learning_recommendation(
         skill_analysis=skill_analysis,
     )
 
+    recommendations = [
+        rec
+        for rec in recommendations
+        if rec.source_engine == "recommendation-intelligence-v1"
+    ]
     assert len(recommendations) == 1
 
     recommendation = recommendations[0]
@@ -229,6 +234,11 @@ def test_partial_gap_generates_recommendation():
         skill_analysis=skill_analysis,
     )
 
+    recommendations = [
+        rec
+        for rec in recommendations
+        if rec.source_engine == "recommendation-intelligence-v1"
+    ]
     assert len(recommendations) == 1
 
     recommendation = recommendations[0]
@@ -267,6 +277,11 @@ def test_existing_gap_confidence_is_reused():
         skill_analysis=skill_analysis,
     )
 
+    recommendations = [
+        rec
+        for rec in recommendations
+        if rec.source_engine == "recommendation-intelligence-v1"
+    ]
     assert len(recommendations) == 1
     assert recommendations[0].confidence == confidence
 

@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from hashlib import sha256
 
+from backend.app.analysis.learning_catalog import (
+    LearningCatalogInstance,
+    LEARNING_CATALOG_VERSION,
+)
 from backend.app.domain.career import CareerIntelligence
 from backend.app.domain.confidence import Confidence, ConfidenceLevel
 from backend.app.domain.gaps import SkillAnalysis, SkillGap
@@ -17,9 +21,15 @@ from backend.app.domain.recommendations import (
 from backend.app.domain.resume import ResumeProfile
 from backend.app.domain.scoring import ScoringResult
 from backend.app.domain.xai import XAIResult
+from backend.app.analysis.certification_catalog import (
+    CertificationRecommender,
+)
+from backend.app.analysis.skill_taxonomy import Taxonomy
 
 
 ENGINE_VERSION = "recommendation-intelligence-v1"
+
+_TRAINING_RECOMMENDER = CertificationRecommender()
 
 
 class RecommendationIntelligence:
@@ -99,6 +109,16 @@ class RecommendationIntelligence:
             )
         )
 
+        if skill_analysis is not None:
+            recommendations.extend(
+                self._recommend_learning_resources(
+                    skill_analysis=skill_analysis,
+                    resume_profile=resume_profile,
+                    job_profile=job_profile,
+                    matching=matching,
+                )
+            )
+
         recommendations = self._deduplicate(recommendations)
         recommendations.sort(key=self._sort_key)
 
@@ -159,6 +179,12 @@ class RecommendationIntelligence:
             )
 
             recommendations.append(recommendation)
+
+            recommendations.extend(
+                self._training_recommendations(
+                    gap=gap,
+                )
+            )
 
         return recommendations
 
@@ -343,6 +369,190 @@ class RecommendationIntelligence:
                     source_engine=self.ENGINE_VERSION,
                 )
             )
+
+        return recommendations
+
+    def _training_recommendations(
+        self,
+        *,
+        gap: SkillGap,
+    ) -> list[Recommendation]:
+        """Turn a skill gap into concrete certification/course actions."""
+        target = gap.target_skill_name.strip()
+        if not target:
+            return []
+
+        resources = _TRAINING_RECOMMENDER.resources_for_canonical_or_raw(target)
+        if not resources:
+            return []
+
+        primary = resources[0]
+        extras = resources[1:3]
+
+        priority_score = self._priority_score(gap)
+        impact_score = self._impact_score(gap)
+
+        kind_text = (
+            "certification"
+            if primary.resource_kind == "certification"
+            else "course"
+        )
+
+        title = f"{primary.name} ({primary.provider})"
+
+        rationale = (
+            f"To close the gap on {target}, the recommended {kind_text} is "
+            f"{primary.name} by {primary.provider} ({primary.level} level)."
+        )
+        if extras:
+            alternatives = "; ".join(
+                f"{resource.name} ({resource.provider})"
+                for resource in extras
+            )
+            rationale += f" Alternatives: {alternatives}."
+        rationale += (
+            f" This is suggested because {target} is a "
+            f"{gap.requirement_type.lower()} requirement gap "
+            f"({gap.match_status})."
+        )
+
+        return [
+            Recommendation(
+                recommendation_id=self._stable_id(
+                    RecommendationType.CERTIFICATION.value,
+                    target,
+                    primary.name,
+                ),
+                type=RecommendationType.CERTIFICATION,
+                title=title,
+                target_skill=target,
+                priority=self._priority(priority_score),
+                rationale=rationale,
+                expected_impact=self._impact(impact_score),
+                effort=RecommendationEffort.MEDIUM,
+                evidence=[],
+                related_gap_ids=[gap.gap_id],
+                confidence=self._static_confidence(
+                    score=0.90,
+                    rationale=(
+                        "Training recommendation derived deterministically "
+                        "from the certification catalog."
+                    ),
+                ),
+                priority_score=priority_score,
+                impact_score=impact_score,
+                source_engine=f"{self.ENGINE_VERSION}+catalog",
+            )
+        ]
+
+    def _recommend_learning_resources(
+        self,
+        *,
+        skill_analysis: SkillAnalysis,
+        resume_profile: ResumeProfile,
+        job_profile: JobProfile | None,
+        matching: MatchingResult | None,
+    ) -> list[Recommendation]:
+        recommendations: list[Recommendation] = []
+
+        for gap in skill_analysis.gaps:
+            if gap.match_status == "matched":
+                continue
+
+            target = gap.target_skill_name.strip()
+            if not target:
+                continue
+
+            for resource in LearningCatalogInstance.resources_for_skill(target)[:2]:
+                rec_type = (
+                    RecommendationType.CERTIFICATION
+                    if resource.kind == "certification"
+                    else RecommendationType.LEARNING
+                )
+                score = 55.0 + (10.0 if gap.requirement_type == "required" else 0.0)
+                recommendations.append(
+                    Recommendation(
+                        recommendation_id=self._stable_id(
+                            "learning_resource",
+                            resource.title,
+                            gap.gap_id,
+                        ),
+                        type=rec_type,
+                        title=f"{resource.kind.title()} suggestion: {resource.title}",
+                        target_skill=target,
+                        priority=self._priority(score),
+                        rationale=(
+                            f"The resume does not fully demonstrate the required "
+                            f"skill '{target}'. This {resource.kind} from "
+                            f"{resource.provider} covers it and is commonly "
+                            f"recognized by employers."
+                        ),
+                        expected_impact=self._impact(score),
+                        effort=RecommendationEffort.MEDIUM,
+                        evidence=list(gap.evidence),
+                        related_gap_ids=[gap.gap_id],
+                        confidence=self._static_confidence(
+                            score=0.75,
+                            rationale=(
+                                "Deterministic match between the skill gap and "
+                                f"the curated catalog ({LEARNING_CATALOG_VERSION})."
+                            ),
+                        ),
+                        priority_score=score,
+                        impact_score=score,
+                        source_engine=LEARNING_CATALOG_VERSION,
+                        resources=[resource.to_ref(target)],
+                    )
+                )
+
+        # Resume-only mode: suggest next-step certifications for skills the
+        # candidate already demonstrates.
+        if job_profile is None and matching is None:
+            emitted = {rec.target_skill for rec in recommendations if rec.target_skill}
+            for skill_name in skill_analysis.extracted_skills[:20]:
+                if skill_name in emitted:
+                    continue
+                for resource in LearningCatalogInstance.resources_for_skill(skill_name)[:1]:
+                    emitted.add(skill_name)
+                    score = 45.0
+                    recommendations.append(
+                        Recommendation(
+                            recommendation_id=self._stable_id(
+                                "learning_resource",
+                                resource.title,
+                                skill_name,
+                            ),
+                            type=(
+                                RecommendationType.CERTIFICATION
+                                if resource.kind == "certification"
+                                else RecommendationType.LEARNING
+                            ),
+                            title=f"Level up with: {resource.title}",
+                            target_skill=skill_name,
+                            priority=self._priority(score),
+                            rationale=(
+                                f"The resume already demonstrates '{skill_name}'. "
+                                f"This {resource.kind} from {resource.provider} "
+                                f"can validate and deepen it for employers."
+                            ),
+                            expected_impact=self._impact(score),
+                            effort=RecommendationEffort.MEDIUM,
+                            evidence=[],
+                            related_gap_ids=[],
+                            confidence=self._static_confidence(
+                                score=0.70,
+                                rationale=(
+                                    "Deterministic match between a demonstrated "
+                                    f"skill and the catalog ({LEARNING_CATALOG_VERSION})."
+                                ),
+                            ),
+                            priority_score=score,
+                            impact_score=score,
+                            source_engine=LEARNING_CATALOG_VERSION,
+                            resources=[resource.to_ref(skill_name)],
+                        )
+                    )
+                    break
 
         return recommendations
 

@@ -17,6 +17,7 @@ import type {
   SkillGap,
   XAIResult,
 } from "../types/analysis";
+import ZeroStateDashboard from "./ZeroStateDashboard";
 
 const API_BASE = "http://127.0.0.1:8000/api/v1";
 
@@ -56,13 +57,9 @@ function pretty(value: string | undefined | null): string {
 function Header({
   page,
   onNavigate,
-  onNewAnalysis,
-  analysisExists,
 }: {
   page: Page;
   onNavigate: (page: Page) => void;
-  onNewAnalysis: () => void;
-  analysisExists: boolean;
 }) {
   // Map the current page to a nav index.
   // "analyzing" keeps whatever the user was doing (defaults to dashboard).
@@ -115,32 +112,6 @@ function Header({
         ))}
       </nav>
 
-      <div className="topbar__actions">
-        <div className="header-status" title="Analysis engine ready">
-          <span className="dot" aria-hidden="true" />
-          <span className="status-text">
-            Engine <strong>ready</strong>
-          </span>
-        </div>
-
-        {analysisExists ? (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onNewAnalysis}
-          >
-            New analysis
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => onNavigate("input")}
-          >
-            Get started
-          </button>
-        )}
-      </div>
     </header>
   );
 }
@@ -1044,7 +1015,11 @@ function MatchingSection({
                 key={`${match.resume_skill_id}-${match.job_skill_id}-${index}`}
               >
                 <div className="finding-header">
-                  <strong>{pretty(match.relationship)}</strong>
+                  <strong>
+                    {match.resume_skill_name ?? match.resume_skill_id}
+                    {" ↔ "}
+                    {match.job_skill_name ?? match.job_skill_id}
+                  </strong>
                   <div className="matching-badges">
                     <span
                       className={`severity severity-${relationshipClass(match.relationship)}`}
@@ -1998,116 +1973,6 @@ function AnalysisDashboard({
    ZERO-STATE DASHBOARD (Home with no analysis)
    ========================================================= */
 
-function ZeroStateDashboard({
-  onStartAnalysis,
-}: {
-  onStartAnalysis: () => void;
-}) {
-  return (
-    <div className="zero-state">
-      <section className="zero-hero">
-        <span className="eyebrow">Analysis dashboard</span>
-        <h1>No analysis yet</h1>
-        <p>
-          Run your first analysis to unlock resume quality, ATS readiness,
-          career direction, and job-fit scoring — all backed by evidence you can
-          inspect.
-        </p>
-
-        <div className="zero-cta">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={onStartAnalysis}
-          >
-            Run your first analysis
-          </button>
-        </div>
-      </section>
-
-      <section className="zero-modules" aria-label="What you'll get">
-        <article className="zero-module">
-          <span className="zero-module__index">01</span>
-          <h3>Resume quality</h3>
-          <p>Structure, clarity, and completeness scoring with findings.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "62%" }} />
-          </div>
-        </article>
-
-        <article className="zero-module">
-          <span className="zero-module__index">02</span>
-          <h3>ATS readiness</h3>
-          <p>Machine-readability, keyword parsing, and format analysis.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "84%" }} />
-          </div>
-        </article>
-
-        <article className="zero-module">
-          <span className="zero-module__index">03</span>
-          <h3>Career intelligence</h3>
-          <p>Direction, seniority, transferable strengths, and paths.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "47%" }} />
-          </div>
-        </article>
-
-        <article className="zero-module">
-          <span className="zero-module__index">04</span>
-          <h3>Skills & gaps</h3>
-          <p>Matched, partial, missing, and transferable skills.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "73%" }} />
-          </div>
-        </article>
-
-        <article className="zero-module">
-          <span className="zero-module__index">05</span>
-          <h3>Explainability</h3>
-          <p>Every score traceable to evidence in your resume and JD.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "100%" }} />
-          </div>
-        </article>
-
-        <article className="zero-module">
-          <span className="zero-module__index">06</span>
-          <h3>Recommendations</h3>
-          <p>Prioritized actions ranked by impact and effort.</p>
-          <div className="zero-module__preview" aria-hidden="true">
-            <span className="preview-bar" style={{ width: "58%" }} />
-          </div>
-        </article>
-      </section>
-
-      <section className="zero-steps">
-        <div className="zero-step">
-          <span className="zero-step__num">1</span>
-          <div>
-            <h4>Upload your resume</h4>
-            <p>PDF or DOCX, up to 10 MB.</p>
-          </div>
-        </div>
-        <div className="zero-step">
-          <span className="zero-step__num">2</span>
-          <div>
-            <h4>Add a job description (optional)</h4>
-            <p>Unlock JD-specific matching, gaps, and fit scoring.</p>
-          </div>
-        </div>
-        <div className="zero-step">
-          <span className="zero-step__num">3</span>
-          <div>
-            <h4>Get the report</h4>
-            <p>Evidence-backed findings and next actions in seconds.</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 /* =========================================================
    LANDING
    ========================================================= */
@@ -2116,8 +1981,6 @@ function LandingPage({ onStart }: { onStart: () => void }) {
   return (
     <div className="landing-grid">
       <section className="landing-copy">
-        <span className="eyebrow">Explainable career intelligence</span>
-
         <h1>
           Understand what your resume says, where it fits,{" "}
           <em>and what to improve.</em>
@@ -2202,42 +2065,6 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           <span className="swatch" /> 6 skill matches
         </span>
       </div>
-
-      <section className="landing-map" aria-label="Analysis modules">
-        <div className="map-node node-main" aria-hidden="true" />
-        <div className="map-line" aria-hidden="true" />
-
-        <div className="map-node">
-          <span className="node-index">01</span>
-          <strong>Quality</strong>
-          <span>Resume structure, clarity & completeness.</span>
-        </div>
-        <div className="map-node">
-          <span className="node-index">02</span>
-          <strong>ATS</strong>
-          <span>Machine-readability & format parsing.</span>
-        </div>
-        <div className="map-node">
-          <span className="node-index">03</span>
-          <strong>Career</strong>
-          <span>Direction, seniority & transferable strengths.</span>
-        </div>
-        <div className="map-node">
-          <span className="node-index">04</span>
-          <strong>Skills</strong>
-          <span>Matched, partial, missing & transferable.</span>
-        </div>
-        <div className="map-node">
-          <span className="node-index">05</span>
-          <strong>XAI</strong>
-          <span>Evidence-backed explanations for every call.</span>
-        </div>
-        <div className="map-node">
-          <span className="node-index">06</span>
-          <strong>Actions</strong>
-          <span>Prioritized improvements by impact & effort.</span>
-        </div>
-      </section>
     </div>
   );
 }
@@ -2310,21 +2137,7 @@ function InputPage({
           </div>
         )}
 
-        {/* Primary CTA — always visible above the fold */}
-        <div className="upload-cta upload-cta--hero">
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!canSubmit}
-            onClick={() => onSubmit(resumeFile, jdFile, jdText.trim())}
-          >
-            Run SkillLens analysis
-          </button>
-          <span className="upload-cta__hint">
-            Takes about 5–10 seconds · Nothing is stored on our servers
-          </span>
-        </div>
-      </div>
+        {/* Primary CTA — always visible above the fold */}      </div>
 
       {/* ---------- Two symmetrical cards ---------- */}
       <div className="upload-grid">
@@ -2528,6 +2341,21 @@ function InputPage({
           </div>
         </section>
       </div>
+
+              <div className="upload-cta upload-cta--hero">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!canSubmit}
+            onClick={() => onSubmit(resumeFile, jdFile, jdText.trim())}
+          >
+            Run SkillLens analysis
+          </button>
+          <span className="upload-cta__hint">
+            Takes about 5–10 seconds · Nothing is stored on our servers
+          </span>
+        </div>
+
     </section>
   );
 }
@@ -2670,9 +2498,7 @@ function App() {
     setPage("input");
   }
 
-  const analysisExists = Boolean(analysis);
-
-  /* ---------- routing ---------- */
+    /* ---------- routing ---------- */
 
   let body: React.ReactNode = null;
 
@@ -2695,8 +2521,6 @@ function App() {
       <Header
         page={page}
         onNavigate={navigate}
-        onNewAnalysis={handleNewAnalysis}
-        analysisExists={analysisExists}
       />
       <div className="app-content">{body}</div>
     </main>
@@ -2704,3 +2528,24 @@ function App() {
 }
 
 export default App;
+
+export {
+  confidenceLabel,
+  scoreLabel,
+  pretty,
+  Header,
+  EvidenceList,
+  TagList,
+  ScoreCard,
+  Section,
+  DimensionTable,
+  FindingList,
+  ResumeOverview,
+  QualitySection,
+  ATSSection,
+  LanguageSection,
+  CareerSection,
+  JobOverview,
+  MatchingSection,
+};
+export type { Page };

@@ -181,6 +181,8 @@ export interface RequirementAlignment {
 export interface SkillMatch {
   resume_skill_id: string;
   job_skill_id: string;
+  resume_skill_name?: string | null;
+  job_skill_name?: string | null;
   relationship: MatchRelationship;
   similarity: number;
   confidence: Confidence | null;
@@ -363,6 +365,15 @@ export type RecommendationEffort = "low" | "medium" | "high";
 
 export type RecommendationImpact = "low" | "medium" | "high";
 
+export interface LearningResourceRef {
+  kind: string;
+  title: string;
+  provider: string;
+  level: string;
+  url: string;
+  related_skill: string;
+}
+
 export interface Recommendation {
   recommendation_id: string;
   type: RecommendationType;
@@ -378,6 +389,7 @@ export interface Recommendation {
   priority_score: number;
   impact_score: number;
   source_engine: string;
+  resources?: LearningResourceRef[];
 }
 
 export type LanguageIssueType =

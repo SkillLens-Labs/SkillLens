@@ -68,6 +68,9 @@ class SkillMatch(BaseModel):
 
     resume_skill_id: str
     job_skill_id: str
+    # Human-readable names so clients never depend on internal IDs.
+    resume_skill_name: str | None = None
+    job_skill_name: str | None = None
     relationship: MatchRelationship
     similarity: float = Field(ge=0.0, le=1.0)
     confidence: Confidence | None = None

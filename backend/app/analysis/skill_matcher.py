@@ -382,7 +382,11 @@ class SkillMatcher:
 
         return SkillMatch(
             resume_skill_id=candidate.resume_skill.skill_id,
+            resume_skill_name=candidate.resume_skill.display_name
+            or candidate.resume_skill.canonical_name,
             job_skill_id=candidate.job_skill.skill_id,
+            job_skill_name=candidate.job_skill.display_name
+            or candidate.job_skill.canonical_name,
             relationship=candidate.relationship,
             similarity=candidate.similarity,
             confidence=confidence,

@@ -10,6 +10,7 @@ from backend.app.analysis.jd_structure import (
     StructuredJobDescription,
 )
 from backend.app.analysis.skill_normalizer import NormalizedSkill
+from backend.app.analysis.skill_taxonomy import Taxonomy
 from backend.app.domain.job import (
     EducationRequirements,
     ExperienceRequirements,
@@ -565,78 +566,21 @@ class JDProfileBuilder:
     def _skill_category(
         canonical_name: str,
     ) -> str | None:
-        programming = {
-            "python",
-            "java",
-            "javascript",
-            "typescript",
-            "c++",
-            "c#",
-            "go",
-            "rust",
+        category_map = {
+            "programming_language": "programming",
+            "web_framework": "web",
+            "data_and_ml": "data",
+            "cloud_and_devops": "cloud_devops",
+            "database": "data",
+            "tool": "tooling",
+            "business": "business",
+            "soft_skill": "soft",
+            "domain_knowledge": "domain",
         }
 
-        web = {
-            "html",
-            "css",
-            "react",
-            "angular",
-            "vue.js",
-            "node.js",
-            "fastapi",
-            "django",
-            "flask",
-            "spring boot",
-            "rest api",
-            "graphql",
-        }
-
-        data = {
-            "sql",
-            "nosql",
-            "postgresql",
-            "mysql",
-            "mongodb",
-            "redis",
-            "pandas",
-            "numpy",
-            "scikit-learn",
-            "machine learning",
-            "deep learning",
-            "natural language processing",
-            "transformers",
-            "data analysis",
-            "data science",
-            "statistics",
-            "power bi",
-            "tableau",
-            "excel",
-        }
-
-        cloud_devops = {
-            "docker",
-            "kubernetes",
-            "aws",
-            "azure",
-            "gcp",
-            "linux",
-        }
-
-        tooling = {
-            "git",
-            "github",
-        }
-
-        if canonical_name in programming:
-            return "programming"
-        if canonical_name in web:
-            return "web"
-        if canonical_name in data:
-            return "data"
-        if canonical_name in cloud_devops:
-            return "cloud_devops"
-        if canonical_name in tooling:
-            return "tooling"
+        taxonomy_category = Taxonomy.category_by_canonical.get(canonical_name)
+        if taxonomy_category is not None:
+            return category_map.get(taxonomy_category)
 
         return None
 

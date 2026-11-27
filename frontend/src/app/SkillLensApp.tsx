@@ -1,12 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { AnalysisResult, Recommendation } from "../types/analysis";
 import {
   Header,
   Section,
   ScoreCard,
-  TagList,
   EvidenceList,
-  confidenceLabel,
   scoreLabel,
   pretty,
   ResumeOverview,
@@ -459,16 +457,22 @@ export default function SkillLensApp() {
 
   return (
     <div className="app-shell">
-      <Header
-        page={page}
-        onNavigate={(next) => setPage(next)}
-        onNewAnalysis={() => {
-          setResult(null);
-          setSubmitted(false);
-          setPage("input");
-        }}
-        analysisExists={analysisExists}
-      />
+      <Header page={page} onNavigate={(next) => setPage(next)} />
+      {analysisExists && page !== "input" && (
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 24px" }}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setResult(null);
+              setSubmitted(false);
+              setPage("input");
+            }}
+          >
+            New analysis
+          </button>
+        </div>
+      )}
 
       {page === "landing" && <Landing onGetStarted={() => setPage("input")} />}
       {page === "input" && (
